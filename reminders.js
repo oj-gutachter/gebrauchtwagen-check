@@ -1,17 +1,21 @@
 const locale=()=>({de:'de-DE',en:'en-GB',tr:'tr-TR',ar:'ar-DE',pl:'pl-PL',ru:'ru-RU'}[currentLanguage]||'de-DE');
 'use strict';
 const REMINDER_KEY='oj-gebrauchtwagen-check.reminders.v1';
-function createReminderState(){return {vehicleName:'',licensePlate:'',huMonth:'',tireSeason:'',tireDate:'',inspectionDate:'',currentMileage:null,inspectionMileage:null};}
+function createReminderState(){return {vehicleName:'',licensePlate:'',drivetrain:null,huMonth:'',tireSeason:'',tireDate:'',inspectionDate:'',currentMileage:null,inspectionMileage:null};}
 let reminderState=createReminderState();
 function normalizeReminders(raw){
   const out=createReminderState();
   if(!raw||typeof raw!=='object')return out;
+  if(typeof DRIVE_TYPES!=='undefined'&&DRIVE_TYPES.includes(raw.drivetrain))out.drivetrain=raw.drivetrain;
   for(const key of ['vehicleName','licensePlate','huMonth','tireSeason','tireDate','inspectionDate'])if(typeof raw[key]==='string')out[key]=raw[key].slice(0,key==='vehicleName'?60:key==='licensePlate'?20:10);
   for(const key of ['currentMileage','inspectionMileage'])if(Number.isSafeInteger(raw[key])&&raw[key]>=0&&raw[key]<=9999999)out[key]=raw[key];
   return out;
 }
 function loadReminders(){try{reminderState=normalizeReminders(JSON.parse(localStorage.getItem(REMINDER_KEY)||'null'));}catch(_){reminderState=createReminderState();}}
 function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(reminderState));}catch(_){showToast(tr('remindersStorageError'));}}
+function syncReminderDrivetrain(drive){if(!DRIVE_TYPES.includes(drive))return;reminderState.drivetrain=drive;saveReminders();}
+function isElectricReminder(){return (reminderState.drivetrain||state.drivetrain)==='electric';}
+function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'serviceOil');}
 (() => {
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -94,10 +98,10 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
           <label for="tireSeason">${tr('whichTires')}</label><select id="tireSeason" name="tireSeason"><option value="" ${!reminderState.tireSeason?'selected':''}>${tr('noTireReminder')}</option><option value="summer" ${reminderState.tireSeason==='summer'?'selected':''}>${tr('summerTireDefault')}</option><option value="winter" ${reminderState.tireSeason==='winter'?'selected':''}>${tr('winterTireDefault')}</option></select>
           <label for="tireDate">${tr('desiredTireDate')}</label><input id="tireDate" name="tireDate" type="date" value="${escapeHtml(reminderState.tireDate)}" ${!reminderState.tireSeason?'disabled':''}><p class="form-help">${tr('tireDateHelp')}</p>
         </fieldset>
-        <fieldset><legend>${tr('serviceOil')}</legend><p class="form-help">${tr('serviceFormHelp')}</p>
+        <fieldset><legend>${serviceLabel()}</legend><p class="form-help">${tr(isElectricReminder()?'serviceElectricFormHelp':'serviceFormHelp')}</p>
           <label for="inspectionDate">${tr('nextDate')} <span>${tr('optional')}</span></label><input id="inspectionDate" name="inspectionDate" type="date" value="${escapeHtml(reminderState.inspectionDate)}">
           <label for="currentMileage">${tr('currentMileage')} <span>${tr('mileageCountdown')}</span></label><input id="currentMileage" name="currentMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.currentMileage??''}" placeholder="${tr('example',{value:'82500'})}">
-          <label for="inspectionMileage">${tr('serviceByMileage')} <span>${tr('kmOptional')}</span></label><input id="inspectionMileage" name="inspectionMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.inspectionMileage??''}" placeholder="${tr('example',{value:'100000'})}">
+          <label for="inspectionMileage">${tr(isElectricReminder()?'serviceElectricByMileage':'serviceByMileage')} <span>${tr('kmOptional')}</span></label><input id="inspectionMileage" name="inspectionMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.inspectionMileage??''}" placeholder="${tr('example',{value:'100000'})}">
         </fieldset>
         <label class="consent-check"><input type="checkbox" name="clearReminders"><span>${tr('clearCarDetails')}</span></label>
         <div id="reminderFormError" class="form-error" role="alert" tabindex="-1" hidden></div>
@@ -121,8 +125,8 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
       ${!blocks.length&&!mileage?`<div class="empty-reminders"><h2>${tr('noDates')}</h2><p>${tr('noDatesText')}</p><button class="button button-primary" type="button" data-action="edit-reminders">${tr('createFirstReminder')}</button></div>`:''}
       <div class="reminder-stats" aria-label="${tr('trafficLightLabel')}"><span class="green-dot"></span> ${tr('moreThanEightWeeks')} <span class="amber-dot"></span> ${tr('soon')} <span class="red-dot"></span> ${tr('overdue')}</div>
       <section class="reminders-list" aria-label="${tr('yourReminders')}">
-        ${hu?card('hu',tr('inspectionLabel'),hu):''}${tires?card('tires',tr('tireChangeLabel',{tire:tireLabel()}),tires):''}${inspection?card('inspection',tr('serviceOil'),inspection):''}
-        ${mileage?`<article class="reminder-card ${mileage.level}" data-reminder-status="${mileage.level}"><div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">km</span><span class="due-badge">${mileage.badge}</span></div><h2>${tr('serviceByMileageTitle')}</h2><p class="reminder-date">${tr('mileageAt',{n:reminderState.inspectionMileage.toLocaleString(locale())})}</p><p class="reminder-countdown">${mileage.text}</p><p class="reminder-explanation">${tr('mileageCardHelp')}</p></article>`:''}
+        ${hu?card('hu',tr('inspectionLabel'),hu):''}${tires?card('tires',tr('tireChangeLabel',{tire:tireLabel()}),tires):''}${inspection?card('inspection',serviceLabel(),inspection):''}
+        ${mileage?`<article class="reminder-card ${mileage.level}" data-reminder-status="${mileage.level}"><div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">km</span><span class="due-badge">${mileage.badge}</span></div><h2>${tr(isElectricReminder()?'serviceElectricByMileageTitle':'serviceByMileageTitle')}</h2><p class="reminder-date">${tr('mileageAt',{n:reminderState.inspectionMileage.toLocaleString(locale())})}</p><p class="reminder-countdown">${mileage.text}</p><p class="reminder-explanation">${tr('mileageCardHelp')}</p></article>`:''}
       </section>
       <p class="legal-note"><strong>${tr('important')}</strong> ${tr('calendarLegal')}</p>
       <aside class="oj-help-reminder"><p class="eyebrow">${tr('independentHelp')}</p><h2>${tr('accidentHelp')}</h2><p>${tr('accidentExpertHelp')}</p><button class="button button-primary button-full" type="button" data-action="contact">${tr('contactOJ')} ${iconArrow()}</button></aside></div>`;
@@ -132,7 +136,7 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
     return [
       {key:'hu',valid:MONTH_RE.test(reminderState.huMonth)&&!!reminderState.huMonth&&validDate(huBlock()[0]?.date),date:huBlock()[0]?.date,title:`${tr('inspectionLabel')} – ${name}${plate}`,description:tr('calendarHuDescription')},
       {key:'tires',valid:['summer','winter'].includes(reminderState.tireSeason),date:reminderState.tireDate||suggestedTireDate(reminderState.tireSeason),title:`${tr('changeTireTitle',{tire:tireLabel()})} – ${name}${plate}`,description:tr('calendarTireDescription')},
-      {key:'inspection',valid:validDate(reminderState.inspectionDate),date:reminderState.inspectionDate,title:`${tr('serviceOil')} – ${name}${plate}`,description:tr('calendarServiceDescription',{mileage:reminderState.inspectionMileage!==null?tr('calendarMileageLimit',{n:reminderState.inspectionMileage}):''})}
+      {key:'inspection',valid:validDate(reminderState.inspectionDate),date:reminderState.inspectionDate,title:`${serviceLabel()} – ${name}${plate}`,description:tr('calendarServiceDescription',{mileage:reminderState.inspectionMileage!==null?tr('calendarMileageLimit',{n:reminderState.inspectionMileage}):''})}
     ];
   }
   function icsEscape(value) {return String(value).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');}
@@ -181,7 +185,7 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
     else if(inspectionMileage!==null&&currentMileage===null)error=tr('currentMileageRequired');
     if(error){const box=document.getElementById('reminderFormError');box.textContent=error;box.hidden=false;box.focus();return;}
     if(data.get('clearReminders'))reminderState=createReminderState();
-    else reminderState={vehicleName,licensePlate,huMonth,tireSeason:tireSeason||'',tireDate:tireSeason?tireDate:'',inspectionDate,currentMileage,inspectionMileage};
+    else reminderState={vehicleName,licensePlate,drivetrain:state.drivetrain,huMonth,tireSeason:tireSeason||'',tireDate:tireSeason?tireDate:'',inspectionDate,currentMileage,inspectionMileage};
     saveReminders();goTo('reminders');showToast(data.get('clearReminders')?tr('carRemindersDeleted'):tr('detailsSaved'));
   }
   function updateSuggestedTireDate(form,overwrite) {const season=form.elements.tireSeason.value,dateInput=form.elements.tireDate;dateInput.disabled=!season;if(overwrite)dateInput.value=season?suggestedTireDate(season):'';}
@@ -199,7 +203,7 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
     if(button){event.preventDefault();downloadCalendar(button.dataset.reminderCalendar);
     }
   });
-  Object.assign(window,{renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks});
+  Object.assign(window,{syncReminderDrivetrain,renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks});
 })();
 
 if(typeof window.startOjCheck==='function')window.startOjCheck();

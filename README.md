@@ -6,20 +6,24 @@ Mobile-first Web-App für die geführte Besichtigung eines Gebrauchtwagens. Die 
 
 ## Enthalten
 
-- 8 Schritte mit insgesamt 46 Prüfpunkten: Papiere/Historie, Karosserie/Unfallspuren, Lack/Rost, Reifen/Bremsen, Innenraum/Kilometerstand, Motorraum/Flüssigkeiten, Probefahrt, Kaufvertrag/Übergabe.
+- Vor der Checkliste große Antriebswahl mit Symbolen: Benziner, Diesel, Hybrid/Plug-in-Hybrid oder Elektro. Sie wird mit dem Check-Zustand lokal gespeichert; ein Antriebswechsel löscht keine Antworten.
+- Benziner/Diesel: 8 Schritte mit 46 Prüfpunkten. Hybrid/Plug-in-Hybrid: 9 Schritte mit 52 Punkten (alle bisherigen Punkte plus sechs Hybrid-/Batterie-Punkte). Elektro: 9 Schritte mit 53 Punkten (41 passende Bestandspunkte plus zwölf Akku-/Hochvolt-Punkte).
+- Bei Elektro entfallen genau Motoröl/Öldeckel, Riemen/Batterie/Steckverbindungen des Verbrenner-Motorraums, Motorstart/Leerlauf, Anfahren/Schalten/Kupplung sowie Motorleistung/Temperatur/Auspuffrauch. Kühlmittel, Flüssigkeitsspuren und vordere Unfallstruktur bleiben erhalten.
+- Elektro enthält einen eigenen Schritt „Akku & Hochvolt“: SoH-Nachweis, Hersteller-Batteriegarantie laut Unterlagen (häufige 8 Jahre/160.000 km nur als Prüfbezug), Reichweite, Ladeanschluss/-kabel, AC-/DC-Probeladung, Unterboden/Akkugehäuse, Hochvolt-Warnungen, Wartung/Rückrufe/Software, Batteriemiete, Wärmepumpe/Batterieklimatisierung, 12-V-Batterie und Bremsenrost durch Rekuperation. Hybrid ergänzt sechs Punkte zu Hybridbatterie/Garantie, Betriebswechsel, Plug-in-Laden, elektrischer Reichweite, Warnungen und Unterboden.
+- Deutlicher Sicherheitshinweis in beiden Blöcken: Hochvoltteile und orangefarbene Leitungen niemals selbst öffnen, berühren oder daran arbeiten; Arbeiten gehören in eine entsprechend qualifizierte Fachwerkstatt.
 - Je Prüfpunkt: „In Ordnung“, „Auffällig“, „Unklar“.
 - Kurze Fach- und Sicherheitshinweise, Fortschritt und Schritt-Navigation.
-- Ampel-Auswertung, vollständige Liste der auffälligen und unklaren Punkte, Druck-/PDF-Ansicht.
+- Ampel-Auswertung und Kontakt-E-Mail-Entwurf nennen den gewählten Antrieb und zählen nur seine sichtbaren Punkte. Die Druck-/PDF-Ansicht enthält zusätzlich die vollständige angepasste Prüfpunktliste mit Bewertung.
 - Lokale Kontaktansicht mit Telefon und E-Mail-Entwurf. Kein automatisches Senden und kein Online-Formular.
 - Abgrenzung zum OJ Schadenmelder: Diese Anwendung betrifft ausschließlich den Gebrauchtwagenkauf, nicht die Unfall-Schadenmeldung.
-- „Mein Auto – Erinnerungen“: Fahrzeugname/Kennzeichen optional, HU mit Monat und Jahr, Reifenwechsel Sommer/Winter, Inspektion/Ölwechsel nach Datum und/oder Kilometerstand.
+- „Mein Auto – Erinnerungen“: Fahrzeugname/Kennzeichen optional, HU mit Monat und Jahr, Reifenwechsel Sommer/Winter, Inspektion nach Datum und/oder Kilometerstand. Bei Benziner/Diesel/Hybrid heißt der Termin „Inspektion / Ölwechsel“, bei Elektro nur „Inspektion“ – inklusive Kalenderdatei.
 - Terminübersicht mit Tage- oder Kilometer-Countdown und beschrifteter Ampel: mehr als acht Wochen grün, bald gelb, überfällig rot. Beim HU-Monat zählt das Monatsende.
 - „O bis O“ nur als frei änderbarer Vorschlag: Winterreifen 15. Oktober, Sommerreifen eine Woche nach dem tatsächlich berechneten Ostersonntag. Wetter und reale Bedingungen bleiben maßgeblich, kein starrer gesetzlicher Wechseltermin.
 - HU-Hinweis: Pkw in der Regel alle 24 Monate, Neuwagen erstmals nach 36 Monaten. Maßgeblich bleiben Prüfbericht und Plakette (siehe ADAC HU/AU: https://www.adac.de/rund-ums-fahrzeug/reparatur-pflege-wartung/hu-und-au/hu-und-au/).
 - Je Termin Download einer ganztägigen `.ics`-Kalenderdatei mit VALARM vier Wochen vorher um 08:00 Uhr Ortszeit. Der Import erfolgt erst manuell durch den Nutzer. Warnung: Bei der HU steht der Kalendertag für den Plakettenmonat, nicht für eine feste Werkstattbuchung.
 - Browser-Benachrichtigungen/Push bewusst nicht eingebaut: ohne geöffnete App keine Hintergrunderinnerung. Spätere native App: lokale Notifications mit Capacitor, ohne Server oder Tracking; native iPhone-/Android-Integration separat testen.
 - Moderne Hauptversion (seit GF-Entscheidung 06.11.2026): weiche Karten, rundes OJ-Logo, untere App-Leiste. Aussehen „Automatisch“, „Hell“ oder „Dunkel“. Automatisch folgt der Telefon-Einstellung; die Wahl wird nur lokal unter `oj-gebrauchtwagen-check.theme.v1` gespeichert. Das frühe Skript verhindert einen falschen Farbblitz vor dem ersten Aufbau und passt die Browser-Theme-Farbe an.
-- Sechs Sprachen: Deutsch, English, Türkçe, العربية, Polski und Русский. Ohne gespeicherte Wahl wird eine unterstützte Browsersprache erkannt, sonst Deutsch. Die Wahl unter `oj-gebrauchtwagen-check.language.v1`, alle 46 Prüfpunkte, Auswertung, Kontakt-/E-Mail-Texte und drei `.ics`-Texte sind sprachspezifisch. Arabisch verwendet vollständiges RTL.
+- Sechs Sprachen: Deutsch, English, Türkçe, العربية, Polski und Русский. Ohne gespeicherte Wahl wird eine unterstützte Browsersprache erkannt, sonst Deutsch. Die Wahl unter `oj-gebrauchtwagen-check.language.v1`, die bestehenden 46 Prüfpunkte sowie alle Antriebs-, Akku- und Hybridtexte, Auswertung, Kontakt-/E-Mail-Texte und drei `.ics`-Texte sind sprachspezifisch. Arabisch verwendet vollständiges RTL.
 - Die fremdsprachigen Fassungen sind sorgfältig vorbereitete Übersetzungsentwürfe, aber keine muttersprachliche Schlussredaktion. Vor einem produktiven Release ist eine fachliche und muttersprachliche Kontrolle vorgesehen.
 - Die frühere schlichte Root-Version liegt nur noch in der Git-Historie. `/neu/` leitet per Meta-Refresh auf die Hauptversion unter `/` um.
 - Große Schrift (Haupttext mindestens 18px, Hilfetext mindestens 17px), mindestens 48px hohe Bedienelemente und beschriftete Status statt reiner Farbcodierung.
@@ -28,7 +32,7 @@ Mobile-first Web-App für die geführte Besichtigung eines Gebrauchtwagens. Die 
 
 ## Datenschutz und Offline-Nutzung
 
-Einstellungen für Sprache und Aussehen bleiben ebenfalls ausschließlich lokal. Ihre Antworten werden unter `oj-gebrauchtwagen-check.v1`, Fahrzeug-/Termindaten unter `oj-gebrauchtwagen-check.reminders.v1` im localStorage des jeweiligen Browsers gespeichert. Es gibt kein Konto, keine Werbung, kein Tracking, keine externen Schriften, Skripte oder API-Aufrufe. Der Service Worker speichert ausschließlich die eigenen statischen Anwendungsdateien für die Offline-Nutzung. Nach einer Änderung muss der Cache-Namen in `service-worker.js` angehoben werden.
+Einstellungen für Sprache und Aussehen bleiben ebenfalls ausschließlich lokal. Ihre Antworten werden unter `oj-gebrauchtwagen-check.v1` inklusive Antriebswahl, Fahrzeug-/Termindaten unter `oj-gebrauchtwagen-check.reminders.v1` im localStorage des jeweiligen Browsers gespeichert. Es gibt kein Konto, keine Werbung, kein Tracking, keine externen Schriften, Skripte oder API-Aufrufe. Der Service Worker speichert ausschließlich die eigenen statischen Anwendungsdateien für die Offline-Nutzung. Nach einer Änderung muss der Cache-Namen in `service-worker.js` angehoben werden.
 
 Das Manifest ist auf `display: standalone` eingestellt; App-Symbole und Apple-Meta-Tags sind vorhanden. Alle Pfade sind relativ, damit der statische Ordner später mit Capacitor als iOS-/Android-Hülle verwendet werden kann. Für eine echte App-Veröffentlichung sind separates App-Konto, Datenschutz-/Store-Prüfung und die Freigabe des GF erforderlich.
 
@@ -46,15 +50,20 @@ npm install --prefix tests
 node tests/browser-test.cjs
 node tests/reminders-test.cjs
 node tests/accessibility-test.cjs
+node tests/drivetrain-test.cjs
 ```
 
 Der Basistest erwartet Google Chrome unter `/usr/bin/google-chrome`. Er prüft den Ablauf in mobiler Ansicht 390 × 844 Pixel, Speicherung/Neuladen, Reset, rote und grüne Auswertung, Kontaktlinks, Offline-Neuladen, horizontales Layout bis 320 Pixel und Konsolenfehler. Die Testdateien sind nicht Teil der öffentlichen Auslieferung. Der separate Erinnerungs-Test deckt Eingabe, Speichern/Neuladen, Löschen, Ampel, Kontaktlinks und drei echte Kalender-Downloads ab. Der Bedienungstest prüft 390×844 und 320×740 Pixel, Mindestschrift und Tippflächen sowie wichtige Kontraste.
 
-## Aktuelle Funktionsprüfung
+## Antriebs-Funktionsprüfung
+
+06.11.2026: Neuer lokaler Test `tests/drivetrain-test.cjs` prüft alle vier Antriebe und Punktzahlen, Elektro-Filter, 12 Akku-/6 Hybrid-Punkte, Antwortpersistenz, Auswertung, Druck/PDF, Kontaktentwurf, Elektro-Erinnerungen, alle sechs Sprachen einschließlich RTL, mobile Breiten 390/320 Pixel und Offline mit Cache v12. Die drei geforderten Bilder liegen unter `screenshots/antrieb-auswahl.png`, `screenshots/antrieb-elektro-akku.png` und `screenshots/antrieb-auswertung-elektro.png` (jeweils 390 × 844 Pixel). Die fremdsprachigen Fachtexte bleiben Übersetzungsentwürfe und benötigen vor produktiver Veröffentlichung eine fachliche und muttersprachliche Schlussredaktion.
+
+## Frühere Funktionsprüfung
 
 06.11.2026, 21:31 Uhr MEZ bestanden: Alle sechs Sprachen durchliefen je 87 lokale Prüfungen in Chrome, darunter alle 46 Prüfpunkte, Auswertung, Kontakt-E-Mail-Entwürfe, Erinnerungen, Theme-/Sprachpersistenz, Offline und drei echte UTF-8-Kalender-Downloads. Spracherkennung enthielt `fr-FR → de`. Arabisch zeigt vollständiges RTL; zusätzliche Layoutprüfungen für Türkisch und Arabisch durchliefen Start, Prüfschritt, Kontakt, Erinnerungen, Formular und Rechtstexte in 390 und 320 Pixeln ohne horizontalen Überlauf oder sichtbare Bedienfläche unter 48 px.
 
-Alle 18 Kalenderdateien wurden mit `icalendar` unabhängig eingelesen; physische Zeilen enthalten einschließlich Fortsetzungszeichen maximal 75 Bytes. 594 geprüfte sichtbare Textpaare erreichten mindestens 4,9058:1 Kontrast. Service Worker: `oj-gebrauchtwagen-check-v11` (löscht ältere Root- und neu-Caches). Berichte lokal unter `tests/artifacts/neu-i18n-report.json`, `calendar-i18n-parser-report.json` und `text-integrity-report.txt`.
+Alle 18 Kalenderdateien wurden mit `icalendar` unabhängig eingelesen; physische Zeilen enthalten einschließlich Fortsetzungszeichen maximal 75 Bytes. 594 geprüfte sichtbare Textpaare erreichten mindestens 4,9058:1 Kontrast. Service Worker: `oj-gebrauchtwagen-check-v12` (löscht ältere Root- und neu-Caches). Berichte lokal unter `tests/artifacts/neu-i18n-report.json`, `calendar-i18n-parser-report.json` und `text-integrity-report.txt`.
 
 Die fünf geprüften mobilen Abschlussbilder in 390 × 844 Pixel: `screenshots/neu-theme-light.png`, `neu-theme-dark.png`, `neu-lang-switch.png`, `neu-start-tr.png` und `neu-start-ar.png`. Keine muttersprachliche Schlussredaktion der fünf Fremdsprachen; vor einem produktiven Release fachliche Durchsicht durch Muttersprachler.
 

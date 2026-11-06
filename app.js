@@ -137,20 +137,36 @@ let storageAvailable = true;
 let toastTimer;
 const app = document.getElementById('app');
 
+const DRIVE_TYPES=['petrol','diesel','hybrid','electric'];
+const ELECTRIC_ROAD_ITEMS=[1,2,3,5];
+function stepsFor(drive){
+  const base=(index,itemIndexes=null)=>({id:String(index),textKey:`steps.${index}`,itemIndexes:itemIndexes||sourceSteps[index].items.map((_,i)=>i)});
+  if(drive==='electric')return [base(0),base(1),base(2),base(3),base(4),{id:'ev',textKey:'electricStep',itemIndexes:Array.from({length:12},(_,i)=>i)},{id:'5',textKey:'electricEngineStep',itemIndexes:[1,2,5]},base(6,ELECTRIC_ROAD_ITEMS),base(7)];
+  if(drive==='hybrid')return [base(0),base(1),base(2),base(3),base(4),{id:'hy',textKey:'hybridStep',itemIndexes:Array.from({length:6},(_,i)=>i)},base(5),base(6),base(7)];
+  return sourceSteps.map((_,i)=>base(i));
+}
+function activeSteps(){return stepsFor(state.drivetrain);}
+function activePoints(){
+  return activeSteps().flatMap(step=>step.itemIndexes.map(itemIndex=>({key:`${step.id}-${itemIndex}`,step,itemIndex,textKey:`${step.textKey}.items.${itemIndex}`})));
+}
+function driveText(step,field){return tr(`${step.textKey}.${field}`);}
+function driveItemText(point,field){return tr(`${point.textKey}.${field}`);}
+function driveLabel(){return state.drivetrain?tr(`drive.${state.drivetrain}`):'';}
 function createState(){
-  return {version:1, step:0, answers:{}, startedAt:null, completedAt:null};
+  return {version:2, drivetrain:null, step:0, answers:{}, startedAt:null, completedAt:null};
 }
 function normalizeState(raw){
   const clean=createState();
+  const validAnswerKeys=new Set(['petrol','hybrid','electric'].flatMap(drive=>stepsFor(drive).flatMap(step=>step.itemIndexes.map(itemIndex=>`${step.id}-${itemIndex}`))));
   if(!raw || typeof raw!=='object') return clean;
-  clean.step=Number.isInteger(raw.step) ? Math.min(Math.max(raw.step,0),sourceSteps.length-1) : 0;
+  clean.drivetrain=DRIVE_TYPES.includes(raw.drivetrain)?raw.drivetrain:null;
+  clean.step=Number.isInteger(raw.step) ? Math.min(Math.max(raw.step,0),stepsFor(clean.drivetrain).length-1) : 0;
   clean.startedAt=typeof raw.startedAt==='string' ? raw.startedAt : null;
   clean.completedAt=typeof raw.completedAt==='string' ? raw.completedAt : null;
   if(raw.answers && typeof raw.answers==='object'){
-    sourceSteps.forEach((step,si)=>step.items.forEach((item,ii)=>{
-      const value=raw.answers[`${si}-${ii}`];
-      if(sourceStatus[value]) clean.answers[`${si}-${ii}`]=value;
-    }));
+    Object.entries(raw.answers).forEach(([key,value])=>{
+      if(validAnswerKeys.has(key)&&sourceStatus[value])clean.answers[key]=value;
+    });
   }
   return clean;
 }
@@ -165,10 +181,10 @@ function save(){
   catch(error){storageAvailable=false;showToast(tr('storageError'));}
 }
 function counts(){
-  const values=Object.values(state.answers);
-  return {ok:values.filter(v=>v==='ok').length,issue:values.filter(v=>v==='issue').length,unclear:values.filter(v=>v==='unclear').length,total:sourceSteps.reduce((n,s)=>n+s.items.length,0)};
+  const points=activePoints(),values=points.map(point=>state.answers[point.key]).filter(value=>sourceStatus[value]);
+  return {ok:values.filter(v=>v==='ok').length,issue:values.filter(v=>v==='issue').length,unclear:values.filter(v=>v==='unclear').length,total:points.length};
 }
-function isComplete(){return Object.keys(state.answers).length===counts().total;}
+function isComplete(){return !!state.drivetrain&&activePoints().every(point=>sourceStatus[state.answers[point.key]]);}
 function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function backArrow(){return currentLanguage==='ar'?'→':'←';}
 function iconArrow(){return '<svg class="direction-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>';}
@@ -202,9 +218,9 @@ function renderHome(){
       <p class="hero-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5Z"/></svg> ${tr('heroNote')}</p>
     </section>
     <div class="home-content">
-      <div class="section-heading"><h2>${tr('checklistHeading')}</h2><span>${tr('stepsAndPoints',{points:counts().total})}</span></div>
+      <div class="section-heading"><h2>${tr('checklistHeading')}</h2><span>${tr('stepsAndPointsDynamic',{steps:activeSteps().length,points:counts().total})}</span></div>
       <ol class="steps-preview">
-        ${sourceSteps.map((s,i)=>`<li><span class="step-num">${String(i+1).padStart(2,'0')}</span>${tr('stepLabels.'+i)}</li>`).join('')}
+        ${activeSteps().map((step,i)=>`<li><span class="step-num">${String(i+1).padStart(2,'0')}</span>${driveText(step,'shortTitle')}</li>`).join('')}
       </ol>
       <section class="reminder-home-card">
         <div class="reminder-home-icon" aria-hidden="true">✓</div>
@@ -218,26 +234,44 @@ function renderHome(){
       ${started?`<p class="local-notice">${isComplete()?tr('checkComplete'):tr('answersSaved')} <button class="button button-text" type="button" data-action="summary">${tr('toSummary')} <span class="direction-arrow" aria-hidden="true">${currentLanguage==='ar'?'←':'→'}</span></button></p>`:`<p class="local-notice">${tr('offlineInfo')}</p>`}
     </div>`;
 }
+function renderDrivetrainChoice(){
+  const icons={
+    petrol:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 27V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v21M5 27h18M10 8h8v7h-8zM21 10l4 4v10a2 2 0 0 0 4 0v-8l-4-5"/></svg>',
+    diesel:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3C12 9 7 14 7 20a9 9 0 0 0 18 0c0-6-5-11-9-17Z"/><path d="M11 21a5 5 0 0 0 5 4"/></svg>',
+    hybrid:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M26 5C14 5 6 10 6 19a8 8 0 0 0 8 8c9 0 12-10 12-22Z"/><path d="M5 28c4-8 9-12 16-16M17 12l-4 6h5l-3 6"/></svg>',
+    electric:'<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="8" width="24" height="17" rx="3"/><path d="M27 13h3v7h-3M17 10l-6 8h5l-2 5 7-9h-5z"/></svg>'
+  };
+  app.innerHTML=`<section class="drive-page">
+    <button type="button" class="route-back" data-action="home"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('backToStart')}</button>
+    <p class="eyebrow">${tr('drive.eyebrow')}</p><h1>${tr('drive.title')}</h1><p class="page-intro">${tr('drive.intro')}</p>
+    <div class="drive-options" role="group" aria-label="${tr('drive.title')}">
+      ${DRIVE_TYPES.map(drive=>`<button type="button" class="drive-option ${state.drivetrain===drive?'selected':''}" data-action="select-drive" data-drive="${drive}" aria-pressed="${state.drivetrain===drive}"><span class="drive-icon ${drive}" aria-hidden="true">${icons[drive]}</span><span class="drive-option-copy"><strong>${tr(`drive.${drive}`)}</strong><small>${tr(`drive.${drive}Hint`)}</small></span><span class="drive-check" aria-hidden="true">✓</span></button>`).join('')}
+    </div><p class="save-hint">${tr('drive.savedNote')}</p></section>`;
+}
 function renderChecklist(){
-  const step=sourceSteps[state.step];
-  const answeredInStep=step.items.filter((_,i)=>state.answers[`${state.step}-${i}`]).length;
+  if(!state.drivetrain){renderDrivetrainChoice();return;}
+  const steps=activeSteps();
+  state.step=Math.min(Math.max(state.step,0),steps.length-1);
+  const step=steps[state.step];
+  const points=step.itemIndexes.map(itemIndex=>({key:`${step.id}-${itemIndex}`,step,itemIndex,textKey:`${step.textKey}.items.${itemIndex}`}));
+  const answeredInStep=points.filter(point=>state.answers[point.key]).length;
   app.innerHTML=`
     <div class="progress-wrap">
-      <div class="progress-top"><span>${tr('stepOf',{step:state.step+1,total:sourceSteps.length})}</span><strong>${tr('checkedOf',{answered:answeredInStep,total:step.items.length})}</strong></div>
-      <div class="progress-track" role="progressbar" aria-label="${tr('progressLabel')}" aria-valuemin="0" aria-valuemax="${step.items.length}" aria-valuenow="${answeredInStep}"><div class="progress-bar" style="width:${answeredInStep/step.items.length*100}%"></div></div>
-      <nav class="step-dots" aria-label="${tr('stepNavLabel')}">${sourceSteps.map((s,i)=>`<button class="step-dot ${i===state.step?'current':''} ${s.items.every((_,ii)=>state.answers[`${i}-${ii}`])?'done':''}" type="button" data-action="goto-step" data-step="${i}" aria-label="${tr('stepLabel',{step:i+1,title:stepText(i,'title')})}" ${i===state.step?'aria-current="step"':''}></button>`).join('')}</nav>
+      <div class="progress-top"><span>${tr('stepOf',{step:state.step+1,total:steps.length})}</span><strong>${tr('checkedOf',{answered:answeredInStep,total:points.length})}</strong></div>
+      <div class="progress-track" role="progressbar" aria-label="${tr('progressLabel')}" aria-valuemin="0" aria-valuemax="${points.length}" aria-valuenow="${answeredInStep}"><div class="progress-bar" style="width:${answeredInStep/points.length*100}%"></div></div>
+      <nav class="step-dots" aria-label="${tr('stepNavLabel')}">${steps.map((entry,i)=>`<button class="step-dot ${i===state.step?'current':''} ${entry.itemIndexes.every(ii=>state.answers[`${entry.id}-${ii}`])?'done':''}" type="button" data-action="goto-step" data-step="${i}" aria-label="${tr('stepLabel',{step:i+1,title:driveText(entry,'title')})}" ${i===state.step?'aria-current="step"':''}></button>`).join('')}</nav>
     </div>
     <div class="step-content">
-      <div class="step-intro"><p class="eyebrow">${tr('inspectionEyebrow',{step:String(state.step+1).padStart(2,'0')})}</p><h1>${stepText(state.step,'title')}</h1><p>${stepText(state.step,'intro')}</p></div>
-      <aside class="expert-tip"><span class="tip-bulb" aria-hidden="true">✦</span><div><strong>${tr('expertTip')}</strong><p>${stepText(state.step,'tip')}</p></div></aside>
+      <div class="step-intro"><p class="eyebrow">${tr('inspectionEyebrow',{step:String(state.step+1).padStart(2,'0')})}</p><h1>${driveText(step,'title')}</h1><p>${driveText(step,'intro')}</p><button type="button" class="drive-change" data-action="choose-drive">${tr('drive.change',{drive:driveLabel()})}</button></div>
+      <aside class="expert-tip ${['ev','hy'].includes(step.id)?'high-voltage-tip':''}"><span class="tip-bulb" aria-hidden="true">${['ev','hy'].includes(step.id)?'⚡':'✦'}</span><div><strong>${['ev','hy'].includes(step.id)?tr('drive.safetyTitle'):tr('expertTip')}</strong><p>${driveText(step,'tip')}</p></div></aside>
       <div class="checklist">
-        ${step.items.map((item,i)=>{
-          const key=`${state.step}-${i}`, value=state.answers[key]||'';
-          return `<article class="check-item" data-status="${value}">
-            <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${itemText(state.step,i,'title')}</h2></div>
-            <p class="check-tip">${itemText(state.step,i,'hint')}</p>
-            <div class="choice-group" role="group" aria-label="${tr('ratingLabel',{title:itemText(state.step,i,'title')})}">
-              ${Object.entries(sourceStatus).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${tr('status.'+status)}</button>`).join('')}
+        ${points.map((point,i)=>{
+          const value=state.answers[point.key]||'';
+          return `<article class="check-item" data-status="${value}" data-point-key="${point.key}">
+            <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${driveItemText(point,'title')}</h2></div>
+            <p class="check-tip">${driveItemText(point,'hint')}</p>
+            <div class="choice-group" role="group" aria-label="${tr('ratingLabel',{title:driveItemText(point,'title')})}">
+              ${Object.entries(sourceStatus).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${point.key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${tr('status.'+status)}</button>`).join('')}
             </div>
           </article>`;
         }).join('')}
@@ -245,11 +279,12 @@ function renderChecklist(){
       <p class="save-hint">${storageAvailable?tr('savedLocally'):tr('sessionOnly')}</p>
       <div class="step-actions">
         <button type="button" class="button button-secondary" data-action="previous"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('back')}</button>
-        ${state.step===sourceSteps.length-1?`<button type="button" class="button button-primary" data-action="summary">${tr('summary')} ${iconArrow()}</button>`:`<button type="button" class="button button-primary" data-action="next">${tr('next')} ${iconArrow()}</button>`}
+        ${state.step===steps.length-1?`<button type="button" class="button button-primary" data-action="summary">${tr('summary')} ${iconArrow()}</button>`:`<button type="button" class="button button-primary" data-action="next">${tr('next')} ${iconArrow()}</button>`}
         <button type="button" class="button button-text" data-action="summary">${tr('viewSummary')}${!isComplete()?tr('notComplete'):''}</button>
       </div>
     </div>`;
 }
+
 function summaryStatus(){
   const c=counts();
   if(c.issue>0) return {class:'red',icon:'!',title:tr('resultIssueTitle'),text:tr(c.issue===1?'resultIssueOne':'resultIssueMany',{n:c.issue})+(c.unclear?tr(c.unclear===1?'resultUnclearOne':'resultUnclearMany',{n:c.unclear}):'')};
@@ -259,14 +294,19 @@ function summaryStatus(){
 }
 function findings(){
   const output=[];
-  sourceSteps.forEach((step,si)=>{
-    const entries=step.items.map((item,ii)=>({item,key:`${si}-${ii}`})).filter(({key})=>state.answers[key]==='issue'||state.answers[key]==='unclear');
-    if(!entries.length) return;
-    output.push(`<section class="findings-group"><h3>${si+1}. ${stepText(si,'title')}</h3>${entries.map(({item,key})=>`<div class="finding ${state.answers[key]}"><span class="finding-label">${tr('status.'+state.answers[key])}</span><p>${itemText(si,Number(key.split('-')[1]),'title')}</p></div>`).join('')}</section>`);
+  activeSteps().forEach((step,displayIndex)=>{
+    const entries=step.itemIndexes.map(itemIndex=>({key:`${step.id}-${itemIndex}`,itemIndex,textKey:`${step.textKey}.items.${itemIndex}`})).filter(point=>['issue','unclear'].includes(state.answers[point.key]));
+    if(!entries.length)return;
+    output.push(`<section class="findings-group"><h3>${displayIndex+1}. ${driveText(step,'title')}</h3>${entries.map(point=>`<div class="finding ${state.answers[point.key]}"><span class="finding-label">${tr('status.'+state.answers[point.key])}</span><p>${driveItemText(point,'title')}</p></div>`).join('')}</section>`);
   });
   return output;
 }
+function printChecklist(){
+  return `<section class="print-checklist"><h2>${tr('drive.printChecklistTitle')}</h2><p><strong>${tr('drive.summaryLabel')}:</strong> ${driveLabel()} · ${counts().total} ${tr('drive.points')}</p>${activeSteps().map((step,index)=>`<section><h3>${index+1}. ${driveText(step,'title')}</h3><ol>${step.itemIndexes.map(itemIndex=>{const point={key:`${step.id}-${itemIndex}`,textKey:`${step.textKey}.items.${itemIndex}`};const answer=state.answers[point.key];return `<li><strong>${driveItemText(point,'title')}</strong> – ${answer?tr('status.'+answer):tr('drive.unrated')}</li>`;}).join('')}</ol></section>`).join('')}</section>`;
+}
+
 function renderSummary(){
+  if(!state.drivetrain){renderDrivetrainChoice();return;}
   const c=counts(), s=summaryStatus(), completed=c.ok+c.issue+c.unclear;
   const recommendation=c.issue>0?'recommendationIssue':c.unclear>0?'recommendationUnclear':'recommendationOk';
   app.innerHTML=`
@@ -274,6 +314,7 @@ function renderSummary(){
       <p class="eyebrow">${tr('personalSummary')}</p>
       <div class="status-light ${s.class}" aria-hidden="true">${s.icon}</div>
       <h1>${s.title}</h1><p class="summary-status-text">${s.text}</p>
+      <p class="summary-drivetrain"><strong>${tr('drive.summaryLabel')}:</strong> ${driveLabel()} · ${c.total} ${tr('drive.points')}</p>
       <div class="score" aria-label="${tr('scoreLabel',{ok:c.ok,issue:c.issue,unclear:c.unclear})}"><span class="score-pill ok">✓ ${c.ok} ${tr('okAbbreviation')}</span><span class="score-pill issue">! ${c.issue} ${tr('issueAbbreviation')}</span><span class="score-pill unclear">? ${c.unclear} ${tr('unclearAbbreviation')}</span></div>
       ${completed<c.total?`<p class="local-notice">${tr('ratedOf',{done:completed,total:c.total})} <button type="button" class="button button-text" data-action="start">${tr('continueCheck')}</button></p>`:''}
     </section>
@@ -282,6 +323,7 @@ function renderSummary(){
       <h2 class="findings-title">${tr('notesTitle')}</h2><p class="findings-sub">${tr('notesIntro')}</p>
       ${findings().join('')||`<div class="all-ok">✓ ${tr('noFindings')}</div>`}
       <p class="legal-note"><strong>${tr('important')}</strong> ${tr('summaryLegal')}</p>
+      ${printChecklist()}
       <section class="after-purchase-card"><p class="eyebrow">${tr('carBought')}</p><h2>${tr('secureDates')}</h2><p>${tr('secureDatesText')}</p><button class="button button-secondary button-full" type="button" data-action="reminders">${tr('myCarReminders')} ${iconArrow()}</button></section>
       <div class="summary-actions">
         <a class="button button-primary button-full" href="${contactLink()}" data-action="contact">${tr('requestExpert')} ${iconArrow()}</a>
@@ -296,7 +338,7 @@ function renderContact(){
   const c=counts();
   const accidentContact=contactOrigin==='reminders';
   const subject=tr(accidentContact?'accidentSubject':'checkSubject');
-  const body=[...tr(accidentContact?'accidentEmail':'checkEmail',{ok:c.ok,issue:c.issue,unclear:c.unclear})].join('\n');
+  const body=[...tr(accidentContact?'accidentEmail':'checkEmail',{ok:c.ok,issue:c.issue,unclear:c.unclear}),...(!accidentContact&&state.drivetrain?['',`${tr('drive.summaryLabel')}: ${driveLabel()}`]:[])].join('\n');
   const mailto=`mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   app.innerHTML=`
     <section class="contact-hero"><p class="eyebrow">${tr('independentInspection')}</p><h1>${accidentContact?tr('accidentHelp'):tr('requestExpert')}</h1><p>${accidentContact?tr('accidentContactIntro'):tr('checkContactIntro')}</p></section>
@@ -334,17 +376,26 @@ function handleAction(action,element){
     save();goTo('check');
   }else if(action==='answer'){
     const key=element.dataset.key,value=element.dataset.value;
-    if(!/^\d+-\d+$/.test(key)||!sourceStatus[value]) return;
+    if(!/^(?:\d+|ev|hy)-\d+$/.test(key)||!sourceStatus[value]||!activePoints().some(point=>point.key===key)) return;
     state.answers[key]=value;save();renderChecklist();
     document.querySelector(`[data-key="${key}"]`)?.focus();
   }else if(action==='next'){
-    state.step=Math.min(state.step+1,sourceSteps.length-1);save();goTo('check');
+    state.step=Math.min(state.step+1,activeSteps().length-1);save();goTo('check');
   }else if(action==='previous'){
-    if(state.step===0) goTo('home');
+    if(state.step===0){state.drivetrain=null;save();goTo('check');}
     else {state.step=Math.max(0,state.step-1);save();goTo('check');}
   }else if(action==='goto-step'){
     const step=Number(element.dataset.step);
-    if(Number.isInteger(step)&&step>=0&&step<sourceSteps.length){state.step=step;save();goTo('check');}
+    if(Number.isInteger(step)&&step>=0&&step<activeSteps().length){state.step=step;save();goTo('check');}
+  }else if(action==='select-drive'){
+    const drive=element.dataset.drive;
+    if(!DRIVE_TYPES.includes(drive))return;
+    state.drivetrain=drive;state.step=0;state.completedAt=null;
+    if(typeof syncReminderDrivetrain==='function')syncReminderDrivetrain(drive);
+    if(!state.startedAt)state.startedAt=new Date().toISOString();
+    save();goTo('check');
+  }else if(action==='choose-drive'){
+    state.drivetrain=null;save();goTo('check');
   }else if(action==='summary'){
     if(isComplete()&&!state.completedAt) state.completedAt=new Date().toISOString();
     save();goTo('summary');
@@ -406,6 +457,7 @@ document.getElementById('resetDialog').addEventListener('click',event=>{
 window.startOjCheck=()=>{
   load();
   if(typeof loadReminders==='function')loadReminders();
+  if(state.drivetrain&&typeof syncReminderDrivetrain==='function')syncReminderDrivetrain(state.drivetrain);
   route=normalizedRoute(location.hash);
   render();
 };
