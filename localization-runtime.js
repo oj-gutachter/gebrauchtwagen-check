@@ -54,6 +54,7 @@
     syncLanguage();
     if(typeof syncOJThemeLabels==='function')syncOJThemeLabels(document.documentElement.dataset.theme||'auto');
     if(typeof render==='function')render();
+    if(typeof preparePrintReport==='function')preparePrintReport();
   }
   const openDialog=()=>{
     syncLanguage();

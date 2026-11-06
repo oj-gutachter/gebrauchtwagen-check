@@ -138,6 +138,19 @@ let toastTimer;
 const app = document.getElementById('app');
 
 const DRIVE_TYPES=['petrol','diesel','hybrid','electric'];
+const VEHICLE_FIELDS=[
+  {key:'makeModel',label:'printMakeModel',placeholder:'',type:'text'},
+  {key:'registration',label:'printRegistration',placeholder:'',type:'text'},
+  {key:'mileage',label:'printMileage',placeholder:'',type:'text'},
+  {key:'firstRegistration',label:'printFirstRegistration',placeholder:'',type:'text'},
+  {key:'seller',label:'printSeller',placeholder:'',type:'text'}
+];
+function printDate(value=new Date()){
+  const date=value instanceof Date?value:new Date(value);
+  return new Intl.DateTimeFormat(currentLanguage==='ar'?'ar-EG':currentLanguage,{day:'2-digit',month:'2-digit',year:'numeric'}).format(date);
+}
+function vehicleValue(key){return state.vehicle&&typeof state.vehicle[key]==='string'?state.vehicle[key].trim():'';}
+function noteValue(key){return state.notes&&typeof state.notes[key]==='string'?state.notes[key].trim():'';}
 const ELECTRIC_ROAD_ITEMS=[1,2,3,5];
 function stepsFor(drive){
   const base=(index,itemIndexes=null)=>({id:String(index),textKey:`steps.${index}`,itemIndexes:itemIndexes||sourceSteps[index].items.map((_,i)=>i)});
@@ -153,7 +166,7 @@ function driveText(step,field){return tr(`${step.textKey}.${field}`);}
 function driveItemText(point,field){return tr(`${point.textKey}.${field}`);}
 function driveLabel(){return state.drivetrain?tr(`drive.${state.drivetrain}`):'';}
 function createState(){
-  return {version:2, drivetrain:null, step:0, answers:{}, startedAt:null, completedAt:null};
+  return {version:2, drivetrain:null, step:0, answers:{}, notes:{}, vehicle:{}, startedAt:null, completedAt:null};
 }
 function normalizeState(raw){
   const clean=createState();
@@ -163,6 +176,13 @@ function normalizeState(raw){
   clean.step=Number.isInteger(raw.step) ? Math.min(Math.max(raw.step,0),stepsFor(clean.drivetrain).length-1) : 0;
   clean.startedAt=typeof raw.startedAt==='string' ? raw.startedAt : null;
   clean.completedAt=typeof raw.completedAt==='string' ? raw.completedAt : null;
+  if(raw.notes && typeof raw.notes==='object'){
+    Object.entries(raw.notes).forEach(([key,value])=>{if(validAnswerKeys.has(key)&&typeof value==='string')clean.notes[key]=value.slice(0,500);});
+  }
+  if(raw.vehicle && typeof raw.vehicle==='object'){
+    clean.vehicle={};
+    VEHICLE_FIELDS.forEach(field=>{if(typeof raw.vehicle[field.key]==='string')clean.vehicle[field.key]=raw.vehicle[field.key].slice(0,field.key==='generalNotes'?1000:160);});
+  }
   if(raw.answers && typeof raw.answers==='object'){
     Object.entries(raw.answers).forEach(([key,value])=>{
       if(validAnswerKeys.has(key)&&sourceStatus[value])clean.answers[key]=value;
@@ -270,6 +290,7 @@ function renderChecklist(){
           return `<article class="check-item" data-status="${value}" data-point-key="${point.key}">
             <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${driveItemText(point,'title')}</h2></div>
             <p class="check-tip">${driveItemText(point,'hint')}</p>
+            <div class="check-note"><label for="note-${point.key}">${tr('printNoteColumn')} <span>(${tr('optional')})</span><input id="note-${point.key}" type="text" data-action="point-note" data-key="${point.key}" value="${escapeHtml(noteValue(point.key))}" maxlength="500" placeholder="${tr('printNotePlaceholder')}" autocomplete="off"></label></div>
             <div class="choice-group" role="group" aria-label="${tr('ratingLabel',{title:driveItemText(point,'title')})}">
               ${Object.entries(sourceStatus).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${point.key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${tr('status.'+status)}</button>`).join('')}
             </div>
@@ -301,8 +322,46 @@ function findings(){
   });
   return output;
 }
-function printChecklist(){
-  return `<section class="print-checklist"><h2>${tr('drive.printChecklistTitle')}</h2><p><strong>${tr('drive.summaryLabel')}:</strong> ${driveLabel()} · ${counts().total} ${tr('drive.points')}</p>${activeSteps().map((step,index)=>`<section><h3>${index+1}. ${driveText(step,'title')}</h3><ol>${step.itemIndexes.map(itemIndex=>{const point={key:`${step.id}-${itemIndex}`,textKey:`${step.textKey}.items.${itemIndex}`};const answer=state.answers[point.key];return `<li><strong>${driveItemText(point,'title')}</strong> – ${answer?tr('status.'+answer):tr('drive.unrated')}</li>`;}).join('')}</ol></section>`).join('')}</section>`;
+function printVehicleText(value){
+  return value?escapeHtml(value):'<span class="print-blank-line" aria-hidden="true"></span>';
+}
+function printStatusChip(status,count){
+  return `<span class="print-chip ${status}"><b aria-hidden="true">${sourceStatus[status].icon}</b><strong>${count}</strong> ${tr(status==='ok'?'okAbbreviation':status==='unclear'?'unclearAbbreviation':'issueAbbreviation')}</span>`;
+}
+function printPointRow(point,index){
+  const answer=sourceStatus[state.answers[point.key]]?state.answers[point.key]:'unrated';
+  const icon=answer==='unrated'?'–':sourceStatus[answer].icon;
+  return `<tr class="print-result-${answer}"><td class="print-point"><span class="print-point-number">${index+1}.</span> ${escapeHtml(driveItemText(point,'title'))}</td><td class="print-result"><span aria-hidden="true">${icon}</span> <small>${escapeHtml(answer==='unrated'?tr('drive.unrated'):tr('status.'+answer))}</small></td><td class="print-note" data-print-note="${point.key}">${escapeHtml(noteValue(point.key))||tr('printNoNote')}</td></tr>`;
+}
+function refreshPrintFooters(){
+  const report=app.querySelector('.print-report');
+  if(!report)return;
+  report.querySelectorAll('.print-page-footer').forEach(footer=>footer.remove());
+  const mm=96/25.4;
+  const printableHeight=(297-15-34)*mm;
+  const pageCount=Math.max(1,Math.ceil(report.scrollHeight/printableHeight));
+  for(let index=0;index<pageCount;index++){
+    report.insertAdjacentHTML('beforeend',`<div class="print-page-footer" style="top:${(index+1)*printableHeight+9*mm}px"><span class="print-footer-disclaimer">${tr('summaryLegal')}</span><span class="print-footer-meta">${tr('printCreatedWith')}<span class="print-page-number">${tr('printPage',{page:index+1,pages:pageCount})}</span></span></div>`);
+  }
+}
+
+function printReport(c,s,recommendation){
+  const flagged=activeSteps().flatMap((step,stepIndex)=>step.itemIndexes.map((itemIndex,itemIndexInStep)=>({key:`${step.id}-${itemIndex}`,textKey:`${step.textKey}.items.${itemIndex}`,step,stepIndex,itemIndexInStep}))).filter(point=>['issue','unclear'].includes(state.answers[point.key]));
+  const contactLine=`Larry O. Johnson · ${tr('profession')} · ${CONTACT.address} · Tel. ${CONTACT.landlineDisplay} / ${CONTACT.phoneDisplay} · ${CONTACT.email} · www.oj-gutachter.de`;
+  return `<article class="print-report" aria-label="${escapeHtml(tr('printProtocolTitle'))}">
+    
+    <header class="print-letterhead"><img src="assets/oj-rund.png" alt="OJ Gutachter" width="72" height="72"><div class="print-office"><p class="print-office-name">OJ Gutachter <span>– ${tr('printOfficeSubtitle')}</span></p><p class="print-contact-line" dir="auto">${contactLine}</p></div></header>
+    <div class="print-title-row"><h1>${tr('printProtocolTitle')}</h1><p>${tr('printCreatedOn',{date:printDate()})}${state.startedAt?`<br>${tr('printCheckDate',{date:printDate(state.startedAt)})}`:''}</p></div>
+    <section class="print-vehicle"><h2>${tr('printVehicleData')}</h2><dl>${VEHICLE_FIELDS.map(field=>`<div class="print-vehicle-field print-field-${field.key}"><dt>${tr(field.label)}</dt><dd data-print-vehicle="${field.key}">${printVehicleText(vehicleValue(field.key))}</dd></div>`).join('')}</dl>${vehicleValue('generalNotes')?`<p class="print-general-notes"><strong>${tr('printGeneralNotes')}:</strong> <span data-print-general-notes>${escapeHtml(vehicleValue('generalNotes'))}</span></p>`:'<p class="print-general-notes" hidden><strong>'+tr('printGeneralNotes')+':</strong> <span data-print-general-notes></span></p>'}</section>
+    <section class="print-summary-box"><div class="print-summary-top"><div><p class="print-section-label">${tr('printSummaryTitle')}</p><h2>${s.title}</h2></div><span class="print-ampel ${s.class}" aria-hidden="true"><i></i><i></i><i></i></span></div><p class="print-summary-text">${s.text}</p><p class="print-drive"><strong>${tr('drive.summaryLabel')}:</strong> ${driveLabel()} · ${c.total} ${tr('drive.points')}</p><div class="print-chips">${printStatusChip('ok',c.ok)}${printStatusChip('issue',c.issue)}${printStatusChip('unclear',c.unclear)}</div></section>
+    <section class="print-findings"><h2>${tr('printFindingsTitle')}</h2>${flagged.length?`<table><thead><tr><th>${tr('printPointColumn')}</th><th>${tr('printResultColumn')}</th><th>${tr('printNoteColumn')}</th></tr></thead><tbody>${flagged.map(point=>`<tr><td><small>${point.stepIndex+1}.${point.itemIndexInStep+1}</small> ${escapeHtml(driveItemText(point,'title'))}</td><td class="print-finding-status ${state.answers[point.key]}">${sourceStatus[state.answers[point.key]].icon} ${tr('status.'+state.answers[point.key])}</td><td data-print-note="${point.key}">${escapeHtml(noteValue(point.key))||tr('printNoNote')}</td></tr>`).join('')}</tbody></table>`:`<p class="print-no-findings">✓ ${tr('noFindings')}</p>`}</section>
+    <section class="print-recommendation"><h2>${tr('printContactTitle')}</h2><p>${tr(recommendation+'Text')}</p><p class="print-recommendation-contact"><strong>OJ Gutachter · Larry O. Johnson</strong><br>${CONTACT.address} · Tel. ${CONTACT.landlineDisplay} / ${CONTACT.phoneDisplay}<br>${CONTACT.email} · www.oj-gutachter.de</p></section>
+    <section class="print-results"><h2>${tr('printResultsTitle')}</h2>${activeSteps().map((step,stepIndex)=>`<section class="print-step-group"><h3>${stepIndex+1}. ${driveText(step,'title')}</h3><table><thead><tr><th>${tr('printPointColumn')}</th><th>${tr('printResultColumn')}</th><th>${tr('printNoteColumn')}</th></tr></thead><tbody>${step.itemIndexes.map((itemIndex,index)=>printPointRow({key:`${step.id}-${itemIndex}`,textKey:`${step.textKey}.items.${itemIndex}`},index)).join('')}</tbody></table></section>`).join('')}</section>
+    <footer class="print-end-note"><strong>${tr('important')}</strong> ${tr('summaryLegal')}<br><span>${tr('printCreatedWith')} · ${printDate()}</span></footer>
+  </article>`;
+}
+function printVehicleForm(){
+  return `<section class="vehicle-data-form screen-summary"><h2>${tr('printVehicleData')} <span>(${tr('optional')})</span></h2><p>${tr('printOptionalHint')}</p><div class="vehicle-data-grid">${VEHICLE_FIELDS.map(field=>`<label for="vehicle-${field.key}">${tr(field.label)}<input id="vehicle-${field.key}" type="text" data-action="vehicle-field" data-field="${field.key}" value="${escapeHtml(vehicleValue(field.key))}" maxlength="160" autocomplete="off"></label>`).join('')}</div><label for="vehicle-general-notes">${tr('printGeneralNotes')}<textarea id="vehicle-general-notes" data-action="vehicle-notes" maxlength="1000" rows="3" placeholder="${tr('printNotePlaceholder')}">${escapeHtml(vehicleValue('generalNotes'))}</textarea></label></section>`;
 }
 
 function renderSummary(){
@@ -310,7 +369,8 @@ function renderSummary(){
   const c=counts(), s=summaryStatus(), completed=c.ok+c.issue+c.unclear;
   const recommendation=c.issue>0?'recommendationIssue':c.unclear>0?'recommendationUnclear':'recommendationOk';
   app.innerHTML=`
-    <section class="summary-hero">
+    ${printReport(c,s,recommendation)}
+    <section class="summary-hero screen-summary">
       <p class="eyebrow">${tr('personalSummary')}</p>
       <div class="status-light ${s.class}" aria-hidden="true">${s.icon}</div>
       <h1>${s.title}</h1><p class="summary-status-text">${s.text}</p>
@@ -318,12 +378,12 @@ function renderSummary(){
       <div class="score" aria-label="${tr('scoreLabel',{ok:c.ok,issue:c.issue,unclear:c.unclear})}"><span class="score-pill ok">✓ ${c.ok} ${tr('okAbbreviation')}</span><span class="score-pill issue">! ${c.issue} ${tr('issueAbbreviation')}</span><span class="score-pill unclear">? ${c.unclear} ${tr('unclearAbbreviation')}</span></div>
       ${completed<c.total?`<p class="local-notice">${tr('ratedOf',{done:completed,total:c.total})} <button type="button" class="button button-text" data-action="start">${tr('continueCheck')}</button></p>`:''}
     </section>
-    <div class="summary-body">
+    <div class="summary-body screen-summary">
       <aside class="recommendation"><div class="recommendation-icon" aria-hidden="true">i</div><div><h2>${tr(recommendation+'Title')}</h2><p>${tr(recommendation+'Text')}</p></div></aside>
       <h2 class="findings-title">${tr('notesTitle')}</h2><p class="findings-sub">${tr('notesIntro')}</p>
       ${findings().join('')||`<div class="all-ok">✓ ${tr('noFindings')}</div>`}
       <p class="legal-note"><strong>${tr('important')}</strong> ${tr('summaryLegal')}</p>
-      ${printChecklist()}
+      ${printVehicleForm()}
       <section class="after-purchase-card"><p class="eyebrow">${tr('carBought')}</p><h2>${tr('secureDates')}</h2><p>${tr('secureDatesText')}</p><button class="button button-secondary button-full" type="button" data-action="reminders">${tr('myCarReminders')} ${iconArrow()}</button></section>
       <div class="summary-actions">
         <a class="button button-primary button-full" href="${contactLink()}" data-action="contact">${tr('requestExpert')} ${iconArrow()}</a>
@@ -374,6 +434,30 @@ function handleAction(action,element){
   if(action==='start'){
     if(!state.startedAt) state.startedAt=new Date().toISOString();
     save();goTo('check');
+  }else if(action==='vehicle-field'){
+    if(!state.vehicle)state.vehicle={};
+    const field=VEHICLE_FIELDS.find(entry=>entry.key===element.dataset.field);
+    if(!field)return;
+    const value=element.value.slice(0,160);
+    if(value)state.vehicle[field.key]=value;else delete state.vehicle[field.key];
+    save();
+    const printNode=document.querySelector(`[data-print-vehicle="${field.key}"]`);
+    if(printNode)printNode.innerHTML=printVehicleText(value);
+  }else if(action==='vehicle-notes'){
+    if(!state.vehicle)state.vehicle={};
+    const value=element.value.slice(0,1000);
+    if(value)state.vehicle.generalNotes=value;else delete state.vehicle.generalNotes;
+    save();
+    const printNode=document.querySelector('[data-print-general-notes]');
+    if(printNode){printNode.textContent=value;printNode.parentElement.hidden=!value;}
+  }else if(action==='point-note'){
+    if(!state.notes)state.notes={};
+    const key=element.dataset.key;
+    if(!activePoints().some(point=>point.key===key))return;
+    const value=element.value.slice(0,500);
+    if(value)state.notes[key]=value;else delete state.notes[key];
+    save();
+    document.querySelectorAll(`[data-print-note="${key}"]`).forEach(node=>{node.textContent=value||tr('printNoNote');});
   }else if(action==='answer'){
     const key=element.dataset.key,value=element.dataset.value;
     if(!/^(?:\d+|ev|hy)-\d+$/.test(key)||!sourceStatus[value]||!activePoints().some(point=>point.key===key)) return;
@@ -437,6 +521,10 @@ document.addEventListener('click',event=>{
   const element=event.target.closest('[data-action]');
   if(element){event.preventDefault();handleAction(element.dataset.action,element);}
 });
+document.addEventListener('input',event=>{
+  const element=event.target.closest('[data-action="vehicle-field"],[data-action="vehicle-notes"],[data-action="point-note"]');
+  if(element)handleAction(element.dataset.action,element);
+});
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();goTo('home');});
 document.getElementById('homeButton').addEventListener('click',()=>goTo('home'));
 function goTo(next){
@@ -454,12 +542,24 @@ window.addEventListener('hashchange',()=>{
 document.getElementById('resetDialog').addEventListener('click',event=>{
   if(event.target===event.currentTarget) event.currentTarget.close();
 });
+function cssString(value){return '"'+String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,' ')+'"';}
+function preparePrintReport(){
+  // Fußzeile über CSS-Seitenränder: Text und echte Seitenzahlen auf jeder Seite.
+  let style=document.getElementById('printPageStyle');
+  if(!style){style=document.createElement('style');style.id='printPageStyle';document.head.appendChild(style);}
+  const pageText=tr('printPage',{page:'\u0001',pages:'\u0002'}).split(/(\u0001|\u0002)/).filter(Boolean).map(part=>part==='\u0001'?'counter(page)':part==='\u0002'?'counter(pages)':cssString(part)).join(' ');
+  const rtl=currentLanguage==='ar';
+  style.textContent=`@media print{@page{@bottom-left{content:${cssString(rtl?'':tr('summaryLegal'))} "\\A" ${cssString(rtl?'':tr('printCreatedWith'))};white-space:pre-wrap;font:6.6pt/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#4c4e52;vertical-align:top;padding-top:2.5mm;border-top:0.6pt solid #aaa5a8;width:150mm}@bottom-right{content:${pageText};font:7pt/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#5D0C0D;font-weight:650;vertical-align:top;padding-top:2.5mm;border-top:0.6pt solid #aaa5a8;width:30mm;text-align:right}${rtl?`@bottom-left{content:${pageText}}@bottom-right{content:${cssString(tr('printCreatedWith'))};width:150mm}`:''}}}`;
+}
+
+window.addEventListener('beforeprint',preparePrintReport);
 window.startOjCheck=()=>{
   load();
   if(typeof loadReminders==='function')loadReminders();
   if(state.drivetrain&&typeof syncReminderDrivetrain==='function')syncReminderDrivetrain(state.drivetrain);
   route=normalizedRoute(location.hash);
   render();
+  preparePrintReport();
 };
 if(typeof loadReminders==='function')window.startOjCheck();
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='127.0.0.1'||location.hostname==='localhost')){
