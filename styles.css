@@ -366,3 +366,34 @@ dialog{width:calc(100% - 36px);max-width:410px;padding:28px;border:1px solid var
   .print-results td{padding-top:.7mm;padding-bottom:.7mm}
   .print-results thead tr:last-child th{padding-top:.7mm;padding-bottom:.7mm}
 }
+/* Kopfzeile auf schmalen Bildschirmen (bis 759 px): festes Raster statt überlappender Elemente. */
+.theme-symbol-auto{display:none}
+html[data-theme="auto"] .theme-symbol-auto{display:block}
+@media(max-width:759px){
+ html body .app-header{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto;align-items:center;gap:8px;height:auto;min-height:calc(82px + env(safe-area-inset-top));padding-top:calc(10px + env(safe-area-inset-top));padding-bottom:10px}
+ html body .app-header .brand{display:grid;grid-template-columns:54px minmax(0,1fr);grid-template-rows:auto auto;column-gap:10px;row-gap:5px;align-items:center;width:auto;height:auto;min-height:52px;min-width:0;grid-column:1;grid-row:1}
+ html body .app-header .brand img{grid-column:1;grid-row:1 / span 2;width:54px;height:54px;min-width:54px;align-self:center}
+ html body .app-header .brand>span:not(.test-badge){display:flex;flex-direction:column;grid-column:2;grid-row:1;min-width:0;align-self:end}
+ html body .app-header .brand strong,html body .app-header .brand small{overflow-wrap:anywhere;min-width:0}
+ html body .app-header .brand strong{font-size:18px}html body .app-header .brand small{font-size:16px;line-height:1.2;margin-top:2px;white-space:normal}
+ html body .app-header .brand .test-badge{position:static;grid-column:2;grid-row:2;justify-self:start;align-self:start;inset:auto;width:auto;max-width:100%;min-height:26px;margin:0;padding:3px 9px;font-size:15px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ html body .app-header .header-actions{grid-column:2;grid-row:1;display:flex;align-items:center;gap:6px;margin:0;align-self:center}
+ html body .app-header .language-button{width:auto;min-width:52px;max-width:52px;min-height:48px;padding:8px 6px;font-size:18px;line-height:1.2}
+ html body .app-header .language-long{display:none}html body .app-header .language-short{display:inline}
+ html body .app-header #homeButton{position:static;width:46px;min-width:46px;height:48px;min-height:48px}
+ html body .app-header #homeButton.hidden{display:none}
+}
+/* Sehr schmal: Titeltext weglassen, Abzeichen unter dem Logo. */
+@media(max-width:374px){
+ html body .app-header .brand>span:not(.test-badge){display:none}
+ html body .app-header .brand img{grid-row:1}
+ html body .app-header .brand .test-badge{grid-column:1 / -1;grid-row:2}
+}
+@media(max-width:759px){
+ /* Abzeichen über die volle Breite der Marke, damit lange Sprachen (RU/PL) nicht abgeschnitten werden. */
+ html body .app-header .brand img{grid-row:1}
+ html body .app-header .brand .test-badge{grid-column:1 / -1;grid-row:2;overflow:visible;text-overflow:clip;white-space:normal;max-width:100%}
+}
+/* Unterleiste: lange Beschriftungen (RU/PL „Напоминания“, „Przypomnienia“) dürfen mehr Platz nehmen statt in die Nachbarn zu ragen. */
+.bottom-nav button>span:not(.nav-icon){max-width:100%;text-align:center;overflow-wrap:anywhere;hyphens:auto}
+@media(max-width:420px){.bottom-nav{gap:2px}.bottom-nav button{flex:1 1 auto;min-width:0;padding-left:4px;padding-right:4px}}
