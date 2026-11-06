@@ -1,0 +1,84 @@
+# OJ Gebrauchtwagen-Check – lokale Testversion
+
+Mobile-first Web-App für die geführte Besichtigung eines Gebrauchtwagens. Die Anwendung ist statisch und ohne Serverlogik umgesetzt. Sie ist vom Farbwirbel-Spiel und von der OJ-Website getrennt.
+
+**Testversion. Die lokale Entwicklung erfolgte ohne Repository. Auf GF-Anweisung wird die getestete statische Testversion im separaten öffentlichen Repo `oj-gutachter/gebrauchtwagen-check` auf GitHub Pages bereitgestellt. Kein App-Store-Release und kein produktiver OJ-Schadenmelder.**
+
+## Enthalten
+
+- 8 Schritte mit insgesamt 46 Prüfpunkten: Papiere/Historie, Karosserie/Unfallspuren, Lack/Rost, Reifen/Bremsen, Innenraum/Kilometerstand, Motorraum/Flüssigkeiten, Probefahrt, Kaufvertrag/Übergabe.
+- Je Prüfpunkt: „In Ordnung“, „Auffällig“, „Unklar“.
+- Kurze Fach- und Sicherheitshinweise, Fortschritt und Schritt-Navigation.
+- Ampel-Auswertung, vollständige Liste der auffälligen und unklaren Punkte, Druck-/PDF-Ansicht.
+- Lokale Kontaktansicht mit Telefon und E-Mail-Entwurf. Kein automatisches Senden und kein Online-Formular.
+- Abgrenzung zum OJ Schadenmelder: Diese Anwendung betrifft ausschließlich den Gebrauchtwagenkauf, nicht die Unfall-Schadenmeldung.
+- „Mein Auto – Erinnerungen“: Fahrzeugname/Kennzeichen optional, HU mit Monat und Jahr, Reifenwechsel Sommer/Winter, Inspektion/Ölwechsel nach Datum und/oder Kilometerstand.
+- Terminübersicht mit Tage- oder Kilometer-Countdown und beschrifteter Ampel: mehr als acht Wochen grün, bald gelb, überfällig rot. Beim HU-Monat zählt das Monatsende.
+- „O bis O“ nur als frei änderbarer Vorschlag: Winterreifen 15. Oktober, Sommerreifen eine Woche nach dem tatsächlich berechneten Ostersonntag. Wetter und reale Bedingungen bleiben maßgeblich, kein starrer gesetzlicher Wechseltermin.
+- HU-Hinweis: Pkw in der Regel alle 24 Monate, Neuwagen erstmals nach 36 Monaten. Maßgeblich bleiben Prüfbericht und Plakette (siehe ADAC HU/AU: https://www.adac.de/rund-ums-fahrzeug/reparatur-pflege-wartung/hu-und-au/hu-und-au/).
+- Je Termin Download einer ganztägigen `.ics`-Kalenderdatei mit VALARM vier Wochen vorher um 08:00 Uhr Ortszeit. Der Import erfolgt erst manuell durch den Nutzer. Warnung: Bei der HU steht der Kalendertag für den Plakettenmonat, nicht für eine feste Werkstattbuchung.
+- Browser-Benachrichtigungen/Push bewusst nicht eingebaut: ohne geöffnete App keine Hintergrunderinnerung. Spätere native App: lokale Notifications mit Capacitor, ohne Server oder Tracking; native iPhone-/Android-Integration separat testen.
+- Große Schrift (Haupttext mindestens 18px, Hilfetext mindestens 17px), mindestens 48px hohe Bedienelemente und beschriftete Status statt reiner Farbcodierung.
+- Sichtbarer „Testversion“-Hinweis und `noindex, nofollow, noarchive` per Meta-Tag sowie Disallow in `robots.txt`. Das reduziert Suchmaschinen-Auffindbarkeit, macht den öffentlichen Link aber nicht privat.
+- Rechtliche und sicherheitsbezogene Hinweise, keine Erfolgs- oder Unfallfreiheitsgarantie.
+
+## Datenschutz und Offline-Nutzung
+
+Ihre Antworten werden nur unter `oj-gebrauchtwagen-check.v1`, Fahrzeug-/Termindaten unter `oj-gebrauchtwagen-check.reminders.v1` im localStorage des jeweiligen Browsers gespeichert. Es gibt kein Konto, keine Werbung, kein Tracking, keine externen Schriften, Skripte oder API-Aufrufe. Der Service Worker speichert ausschließlich die eigenen statischen Anwendungsdateien für die Offline-Nutzung. Nach einer Änderung muss der Cache-Namen in `service-worker.js` angehoben werden.
+
+Das Manifest ist auf `display: standalone` eingestellt; App-Symbole und Apple-Meta-Tags sind vorhanden. Alle Pfade sind relativ, damit der statische Ordner später mit Capacitor als iOS-/Android-Hülle verwendet werden kann. Für eine echte App-Veröffentlichung sind separates App-Konto, Datenschutz-/Store-Prüfung und die Freigabe des GF erforderlich.
+
+## Lokal testen
+
+```sh
+node tests/serve.cjs
+# Nur auf diesem Rechner: http://127.0.0.1:4179
+```
+
+Für einen späteren Smartphone-Test muss die Anwendung über HTTPS oder für localhost per HTTP ausgeliefert werden. Direktes Öffnen über `file://` ist für den Service Worker nicht geeignet.
+
+```sh
+npm install --prefix tests
+node tests/browser-test.cjs
+node tests/reminders-test.cjs
+node tests/accessibility-test.cjs
+```
+
+Der Basistest erwartet Google Chrome unter `/usr/bin/google-chrome`. Er prüft den Ablauf in mobiler Ansicht 390 × 844 Pixel, Speicherung/Neuladen, Reset, rote und grüne Auswertung, Kontaktlinks, Offline-Neuladen, horizontales Layout bis 320 Pixel und Konsolenfehler. Die Testdateien sind nicht Teil der öffentlichen Auslieferung. Der separate Erinnerungs-Testdeckt Eingabe, Speichern/Neuladen, Löschen, Ampel, Kontaktlinks und drei echte Kalender-Downloads ab. Der Bedienungstest prüft 390×844 und 320×740 Pixel, Mindestschrift und Tippflächen sowie wichtige Kontraste.
+
+## Quellen von Kontaktdaten und Branding
+
+Keine Kontaktdaten wurden neu erfunden oder ergänzt.
+
+| Angabe | Verwendeter Wert | Lokale Quelle |
+|---|---|---|
+| Mobil | 0176 21468719 | `/workspace/oj-gutachter/website/raw/index.html`, Kontaktbereich und tel-Link; bestätigt durch `/workspace/oj-gutachter/stammdaten.md` |
+| Festnetz | 0231 62855200 | `/workspace/oj-gutachter/website/raw/index.html`, Kontaktbereich und tel-Link |
+| E-Mail | info@oj-gutachter.de | `/workspace/oj-gutachter/website/raw/index.html`, Kontaktbereich und mailto-Link; außerdem `/workspace/oj-gutachter/website/raw/page_impressum.html` |
+| Name/Anschrift | Larry O. Johnson, Meißener Straße 62, 44139 Dortmund | `/workspace/oj-gutachter/stammdaten.md`, Impressum der vorhandenen Website |
+| Website | www.oj-gutachter.de | `/workspace/oj-gutachter/stammdaten.md` |
+| Weinrot/Anthrazit | #5D0C0D / vorhandene dunkle OJ-Farben | Meta-Theme-Color und CSS in `/workspace/oj-gutachter/website/raw/index.html` |
+| Logo | OJ-Markenzeichen, nur proportional und in Rot/Weiß aufbereitet | `/workspace/oj-gutachter/marketing/oj-logo-original.png` |
+
+In `stammdaten.md` stand die E-Mail noch als offen. Deshalb wurde die eindeutige Adresse aus dem Impressum und Kontaktbereich der vorhandenen OJ-Website übernommen.
+
+## Ergebnis der lokalen Tests
+
+06.11.2026, 19:24 Uhr MEZ:
+
+- Bisheriger Ablauf, Auswertung, Kontaktlinks, lokale Speicherung, Reset und Offline-Nutzung erneut bestanden.
+- Neue Eingabe und Erinnerungsübersicht persistieren in localStorage; Reset der Kauf-Checkliste beeinflusst die separaten Auto-Erinnerungen nicht.
+- Keine Konsolenfehler oder JavaScript-Fehler, keine externen Netzwerk-Anfragen beim normalen Gebrauch.
+- Drei echte UTF-8-.ics-Downloads getestet: CRLF, maximal 75 Bytes je physischer Zeile, ganztägiges Datum, VALARM 28 Tage vorher 08:00 Uhr. Zusätzlich mit `icalendar` eingelesen, deutsche Zeichen einschließlich „TÜV“ korrekt.
+- Bedienprüfung bestanden: mindestens 17px Text, 48px Bedienelemente, getestete Textkontraste über 4,5:1, kein horizontales Scrollen bei 320px.
+- Berichte: `tests/artifacts/test-report.json`, `tests/artifacts/reminders-test-report.json`, `tests/artifacts/accessibility-report.json`, `tests/artifacts/calendar-parser-report.json`.
+
+Sieben aktualisierte Präsentationsbilder liegen unter `screenshots/`, darunter `05-erinnerungen.png`, `06-erinnerungen-uebersicht.png` und `07-erinnerungen-ampel.png`.
+
+## Nicht veröffentlichte Logo-Alternativen
+
+`logo-entwuerfe/` enthält drei 1024×1024-PNG-Alternativen aus dem vorhandenen OJ-Zeichen: Weinrot/Weiß, Weiß/Weinrot sowie weißer Kreis auf Weinrot. Dazu gibt es 128px-Vorschauen und `uebersicht.png`. Das tatsächliche App- und Kopfzeilenlogo wurde nicht verändert. Diese Entwürfe gehören nicht zur Pages-Ausleitung.
+
+## Öffentlicher Testlink
+
+Nach ausdrücklicher GF-Freigabe: `https://oj-gutachter.github.io/gebrauchtwagen-check/`. Die URL wird nach dem Pages-Build per curl und im Browser nochmals verifiziert. Keine Mails, keine App-Store-Einreichung.
