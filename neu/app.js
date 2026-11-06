@@ -11,7 +11,7 @@ const CONTACT = Object.freeze({
   address: 'Meißener Straße 62, 44139 Dortmund'
 });
 
-const STEPS = [
+const sourceSteps = [
   {
     title: 'Papiere & Historie',
     shortTitle: 'Papiere',
@@ -124,7 +124,7 @@ const STEPS = [
   }
 ];
 
-const STATUS = {
+const sourceStatus = {
   ok: {label:'In Ordnung', short:'OK', icon:'✓'},
   issue: {label:'Auffällig', short:'Auffällig', icon:'!'},
   unclear: {label:'Unklar', short:'Unklar', icon:'?'}
@@ -143,13 +143,13 @@ function createState(){
 function normalizeState(raw){
   const clean=createState();
   if(!raw || typeof raw!=='object') return clean;
-  clean.step=Number.isInteger(raw.step) ? Math.min(Math.max(raw.step,0),STEPS.length-1) : 0;
+  clean.step=Number.isInteger(raw.step) ? Math.min(Math.max(raw.step,0),sourceSteps.length-1) : 0;
   clean.startedAt=typeof raw.startedAt==='string' ? raw.startedAt : null;
   clean.completedAt=typeof raw.completedAt==='string' ? raw.completedAt : null;
   if(raw.answers && typeof raw.answers==='object'){
-    STEPS.forEach((step,si)=>step.items.forEach((item,ii)=>{
+    sourceSteps.forEach((step,si)=>step.items.forEach((item,ii)=>{
       const value=raw.answers[`${si}-${ii}`];
-      if(STATUS[value]) clean.answers[`${si}-${ii}`]=value;
+      if(sourceStatus[value]) clean.answers[`${si}-${ii}`]=value;
     }));
   }
   return clean;
@@ -162,15 +162,16 @@ function load(){
 }
 function save(){
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
-  catch(error){storageAvailable=false;showToast('Antworten konnten nicht dauerhaft gespeichert werden.');}
+  catch(error){storageAvailable=false;showToast(tr('storageError'));}
 }
 function counts(){
   const values=Object.values(state.answers);
-  return {ok:values.filter(v=>v==='ok').length,issue:values.filter(v=>v==='issue').length,unclear:values.filter(v=>v==='unclear').length,total:STEPS.reduce((n,s)=>n+s.items.length,0)};
+  return {ok:values.filter(v=>v==='ok').length,issue:values.filter(v=>v==='issue').length,unclear:values.filter(v=>v==='unclear').length,total:sourceSteps.reduce((n,s)=>n+s.items.length,0)};
 }
 function isComplete(){return Object.keys(state.answers).length===counts().total;}
 function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-function iconArrow(){return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>';}
+function backArrow(){return currentLanguage==='ar'?'→':'←';}
+function iconArrow(){return '<svg class="direction-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>';}
 function updateHeader(){document.getElementById('homeButton').classList.toggle('hidden',route==='home');}
 function setRoute(next,{scroll=true}={}){
   previousRoute=route;
@@ -193,103 +194,100 @@ function renderHome(){
   const started=!!state.startedAt && answered>0;
   app.innerHTML=`
     <section class="hero">
-      <p class="eyebrow">Ihr Check vor dem Autokauf</p>
-      <h1>Klarer Blick.<span>Bessere Entscheidung.</span></h1>
-      <p class="hero-copy">Gehen Sie Ihre Besichtigung Schritt für Schritt durch – mit den wichtigsten Prüfpunkten eines Kfz-Sachverständigen.</p>
-      <button class="button button-light" type="button" data-action="start">${started?'Check fortsetzen':'Check starten'} ${iconArrow()}</button>
-      ${started?`<button class="button second-action button-full" type="button" data-action="ask-reset">Neuen Check beginnen</button>`:''}
-      <p class="hero-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5Z"/></svg> Kostenlos · Ohne Konto · Daten bleiben auf Ihrem Gerät</p>
+      <p class="eyebrow">${tr('homeEyebrow')}</p>
+      <h1>${tr('heroLine1')}<span>${tr('heroLine2')}</span></h1>
+      <p class="hero-copy">${tr('heroCopy')}</p>
+      <button class="button button-light" type="button" data-action="start">${started?tr('continueCheck'):tr('startCheck')} ${iconArrow()}</button>
+      ${started?`<button class="button second-action button-full" type="button" data-action="ask-reset">${tr('beginNewCheck')}</button>`:''}
+      <p class="hero-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5Z"/></svg> ${tr('heroNote')}</p>
     </section>
     <div class="home-content">
-      <div class="section-heading"><h2>Das prüfen Sie</h2><span>8 Schritte · ${counts().total} Punkte</span></div>
+      <div class="section-heading"><h2>${tr('checklistHeading')}</h2><span>${tr('stepsAndPoints',{points:counts().total})}</span></div>
       <ol class="steps-preview">
-        ${STEPS.map((s,i)=>`<li><span class="step-num">${String(i+1).padStart(2,'0')}</span>${s.shortTitle}</li>`).join('')}
+        ${sourceSteps.map((s,i)=>`<li><span class="step-num">${String(i+1).padStart(2,'0')}</span>${tr('stepLabels.'+i)}</li>`).join('')}
       </ol>
       <section class="reminder-home-card">
         <div class="reminder-home-icon" aria-hidden="true">✓</div>
-        <div class="reminder-home-copy"><p class="eyebrow">Nach dem Autokauf</p><h2>Mein Auto – Erinnerungen</h2><p>TÜV, Reifenwechsel und Inspektion mit Übersicht und Kalenderdatei.</p></div>
-        <button class="button button-secondary button-full" type="button" data-action="reminders">Termine ansehen ${iconArrow()}</button>
+        <div class="reminder-home-copy"><p class="eyebrow">${tr('afterPurchase')}</p><h2>${tr('myCarReminders')}</h2><p>${tr('remindersIntro')}</p></div>
+        <button class="button button-secondary button-full" type="button" data-action="reminders">${tr('viewDates')} ${iconArrow()}</button>
       </section>
       <aside class="trust-card">
         <div class="trust-card-icon" aria-hidden="true">i</div>
-        <div><h2>Ihre Orientierung vor dem Kauf</h2><p>Notieren Sie Auffälligkeiten direkt am Fahrzeug. Die Ampel gibt Ihnen danach eine erste Einordnung und zeigt, welche Punkte Sie genauer prüfen lassen sollten.</p></div>
+        <div><h2>${tr('orientationTitle')}</h2><p>${tr('orientationText')}</p></div>
       </aside>
-      ${started?`<p class="local-notice">${isComplete()?'Ihr Check ist vollständig.':'Ihre Antworten sind gespeichert.'} <button class="button button-text" type="button" data-action="summary">Zur Auswertung →</button></p>`:'<p class="local-notice">Auch offline nutzbar. Etwa 15–25 Minuten am Fahrzeug.</p>'}
+      ${started?`<p class="local-notice">${isComplete()?tr('checkComplete'):tr('answersSaved')} <button class="button button-text" type="button" data-action="summary">${tr('toSummary')} <span class="direction-arrow" aria-hidden="true">${currentLanguage==='ar'?'←':'→'}</span></button></p>`:`<p class="local-notice">${tr('offlineInfo')}</p>`}
     </div>`;
 }
 function renderChecklist(){
-  const step=STEPS[state.step];
+  const step=sourceSteps[state.step];
   const answeredInStep=step.items.filter((_,i)=>state.answers[`${state.step}-${i}`]).length;
   app.innerHTML=`
     <div class="progress-wrap">
-      <div class="progress-top"><span>Schritt ${state.step+1} von ${STEPS.length}</span><strong>${answeredInStep} / ${step.items.length} geprüft</strong></div>
-      <div class="progress-track" role="progressbar" aria-label="Fortschritt in diesem Schritt" aria-valuemin="0" aria-valuemax="${step.items.length}" aria-valuenow="${answeredInStep}"><div class="progress-bar" style="width:${answeredInStep/step.items.length*100}%"></div></div>
-      <nav class="step-dots" aria-label="Zu einem Bearbeitungsschritt">${STEPS.map((s,i)=>`<button class="step-dot ${i===state.step?'current':''} ${s.items.every((_,ii)=>state.answers[`${i}-${ii}`])?'done':''}" type="button" data-action="goto-step" data-step="${i}" aria-label="Schritt ${i+1}: ${s.title}" ${i===state.step?'aria-current="step"':''}></button>`).join('')}</nav>
+      <div class="progress-top"><span>${tr('stepOf',{step:state.step+1,total:sourceSteps.length})}</span><strong>${tr('checkedOf',{answered:answeredInStep,total:step.items.length})}</strong></div>
+      <div class="progress-track" role="progressbar" aria-label="${tr('progressLabel')}" aria-valuemin="0" aria-valuemax="${step.items.length}" aria-valuenow="${answeredInStep}"><div class="progress-bar" style="width:${answeredInStep/step.items.length*100}%"></div></div>
+      <nav class="step-dots" aria-label="${tr('stepNavLabel')}">${sourceSteps.map((s,i)=>`<button class="step-dot ${i===state.step?'current':''} ${s.items.every((_,ii)=>state.answers[`${i}-${ii}`])?'done':''}" type="button" data-action="goto-step" data-step="${i}" aria-label="${tr('stepLabel',{step:i+1,title:stepText(i,'title')})}" ${i===state.step?'aria-current="step"':''}></button>`).join('')}</nav>
     </div>
     <div class="step-content">
-      <div class="step-intro"><p class="eyebrow">Besichtigung · ${String(state.step+1).padStart(2,'0')}</p><h1>${step.title}</h1><p>${step.intro}</p></div>
-      <aside class="expert-tip"><span class="tip-bulb" aria-hidden="true">✦</span><div><strong>Tipp vom Sachverständigen</strong><p>${step.tip}</p></div></aside>
+      <div class="step-intro"><p class="eyebrow">${tr('inspectionEyebrow',{step:String(state.step+1).padStart(2,'0')})}</p><h1>${stepText(state.step,'title')}</h1><p>${stepText(state.step,'intro')}</p></div>
+      <aside class="expert-tip"><span class="tip-bulb" aria-hidden="true">✦</span><div><strong>${tr('expertTip')}</strong><p>${stepText(state.step,'tip')}</p></div></aside>
       <div class="checklist">
         ${step.items.map((item,i)=>{
           const key=`${state.step}-${i}`, value=state.answers[key]||'';
           return `<article class="check-item" data-status="${value}">
-            <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${item.title}</h2></div>
-            <p class="check-tip">${item.hint}</p>
-            <div class="choice-group" role="group" aria-label="Bewertung: ${item.title}">
-              ${Object.entries(STATUS).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${meta.label}</button>`).join('')}
+            <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${itemText(state.step,i,'title')}</h2></div>
+            <p class="check-tip">${itemText(state.step,i,'hint')}</p>
+            <div class="choice-group" role="group" aria-label="${tr('ratingLabel',{title:itemText(state.step,i,'title')})}">
+              ${Object.entries(sourceStatus).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${tr('status.'+status)}</button>`).join('')}
             </div>
           </article>`;
         }).join('')}
       </div>
-      <p class="save-hint">${storageAvailable?'Antworten werden lokal auf diesem Gerät gespeichert':'Antworten nur in dieser Sitzung verfügbar'}</p>
+      <p class="save-hint">${storageAvailable?tr('savedLocally'):tr('sessionOnly')}</p>
       <div class="step-actions">
-        <button type="button" class="button button-secondary" data-action="previous">← Zurück</button>
-        ${state.step===STEPS.length-1?`<button type="button" class="button button-primary" data-action="summary">Auswertung ${iconArrow()}</button>`:`<button type="button" class="button button-primary" data-action="next">Weiter ${iconArrow()}</button>`}
-        <button type="button" class="button button-text" data-action="summary">Auswertung ansehen${!isComplete()?' (noch nicht vollständig)':''}</button>
+        <button type="button" class="button button-secondary" data-action="previous"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('back')}</button>
+        ${state.step===sourceSteps.length-1?`<button type="button" class="button button-primary" data-action="summary">${tr('summary')} ${iconArrow()}</button>`:`<button type="button" class="button button-primary" data-action="next">${tr('next')} ${iconArrow()}</button>`}
+        <button type="button" class="button button-text" data-action="summary">${tr('viewSummary')}${!isComplete()?tr('notComplete'):''}</button>
       </div>
     </div>`;
 }
 function summaryStatus(){
   const c=counts();
-  if(c.issue>0) return {class:'red',icon:'!',title:'Bitte genauer prüfen lassen',text:`Sie haben ${c.issue} ${c.issue===1?'Auffälligkeit':'Auffälligkeiten'} festgehalten. Das ist ein Grund, vor dem Kauf genauer hinzusehen.${c.unclear?` Zusätzlich ${c.unclear===1?'ist':'sind'} ${c.unclear} ${c.unclear===1?'Punkt':'Punkte'} unklar.`:''}`};
-  if(c.unclear>0) return {class:'amber',icon:'?',title:'Noch nicht alle Punkte sind klar',text:`Es ${c.unclear===1?'bleibt':'bleiben'} ${c.unclear} ${c.unclear===1?'Punkt':'Punkte'} unklar. Lassen Sie offene Fragen vor Ihrer Kaufentscheidung klären.`};
-  if(c.ok===c.total) return {class:'green',icon:'✓',title:'Keine Auffälligkeiten notiert',text:'Bei Ihrer eigenen Besichtigung haben Sie keine Auffälligkeiten gemerkt. Verborgene Schäden können trotzdem vorhanden sein.'};
-  return {class:'amber',icon:'…',title:'Ihr Check ist noch offen',text:'Bewerten Sie die restlichen Punkte für eine vollständige Orientierung. Sie können Ihre Antworten jederzeit fortsetzen.'};
+  if(c.issue>0) return {class:'red',icon:'!',title:tr('resultIssueTitle'),text:tr(c.issue===1?'resultIssueOne':'resultIssueMany',{n:c.issue})+(c.unclear?tr(c.unclear===1?'resultUnclearOne':'resultUnclearMany',{n:c.unclear}):'')};
+  if(c.unclear>0) return {class:'amber',icon:'?',title:tr('resultUnclearTitle'),text:tr(c.unclear===1?'unclearExplanationOne':'unclearExplanationMany',{n:c.unclear})};
+  if(c.ok===c.total) return {class:'green',icon:'✓',title:tr('resultAllOkTitle'),text:tr('resultAllOkText')};
+  return {class:'amber',icon:'…',title:tr('resultIncompleteTitle'),text:tr('resultIncompleteText')};
 }
 function findings(){
   const output=[];
-  STEPS.forEach((step,si)=>{
+  sourceSteps.forEach((step,si)=>{
     const entries=step.items.map((item,ii)=>({item,key:`${si}-${ii}`})).filter(({key})=>state.answers[key]==='issue'||state.answers[key]==='unclear');
     if(!entries.length) return;
-    output.push(`<section class="findings-group"><h3>${si+1}. ${step.title}</h3>${entries.map(({item,key})=>`<div class="finding ${state.answers[key]}"><span class="finding-label">${STATUS[state.answers[key]].short}</span><p>${item.title}</p></div>`).join('')}</section>`);
+    output.push(`<section class="findings-group"><h3>${si+1}. ${stepText(si,'title')}</h3>${entries.map(({item,key})=>`<div class="finding ${state.answers[key]}"><span class="finding-label">${tr('status.'+state.answers[key])}</span><p>${itemText(si,Number(key.split('-')[1]),'title')}</p></div>`).join('')}</section>`);
   });
   return output;
 }
 function renderSummary(){
   const c=counts(), s=summaryStatus(), completed=c.ok+c.issue+c.unclear;
-  let recommendationTitle,recommendationText;
-  if(c.issue>0){recommendationTitle='Ein unabhängiges Gutachten ist sinnvoll';recommendationText='Lassen Sie die Auffälligkeiten vor dem Kauf fachlich prüfen. So werden mögliche Schäden, Reparaturqualität und Folgekosten besser einschätzbar.';}
-  else if(c.unclear>0){recommendationTitle='Offene Punkte fachlich klären';recommendationText='Ein unabhängiger Gebrauchtwagen-Check kann bei offenen Fragen helfen, bevor Sie einen Kaufvertrag unterschreiben.';}
-  else {recommendationTitle='Sicherheit vor der Kaufentscheidung';recommendationText='Auch ohne festgehaltene Auffälligkeit kann ein unabhängiges Gutachten sinnvoll sein – besonders bei einem hohen Kaufpreis oder Zweifeln an der Historie.';}
+  const recommendation=c.issue>0?'recommendationIssue':c.unclear>0?'recommendationUnclear':'recommendationOk';
   app.innerHTML=`
     <section class="summary-hero">
-      <p class="eyebrow">Ihre persönliche Auswertung</p>
+      <p class="eyebrow">${tr('personalSummary')}</p>
       <div class="status-light ${s.class}" aria-hidden="true">${s.icon}</div>
-      <h1>${s.title}</h1><p>${s.text}</p>
-      <div class="score" aria-label="${c.ok} in Ordnung, ${c.issue} auffällig, ${c.unclear} unklar"><span class="score-pill ok">✓ ${c.ok} OK</span><span class="score-pill issue">! ${c.issue} auffällig</span><span class="score-pill unclear">? ${c.unclear} unklar</span></div>
-      ${completed<c.total?`<p class="local-notice">${completed} von ${c.total} Punkten bewertet. <button type="button" class="button button-text" data-action="start">Check fortsetzen</button></p>`:''}
+      <h1>${s.title}</h1><p class="summary-status-text">${s.text}</p>
+      <div class="score" aria-label="${tr('scoreLabel',{ok:c.ok,issue:c.issue,unclear:c.unclear})}"><span class="score-pill ok">✓ ${c.ok} ${tr('okAbbreviation')}</span><span class="score-pill issue">! ${c.issue} ${tr('issueAbbreviation')}</span><span class="score-pill unclear">? ${c.unclear} ${tr('unclearAbbreviation')}</span></div>
+      ${completed<c.total?`<p class="local-notice">${tr('ratedOf',{done:completed,total:c.total})} <button type="button" class="button button-text" data-action="start">${tr('continueCheck')}</button></p>`:''}
     </section>
     <div class="summary-body">
-      <aside class="recommendation"><div class="recommendation-icon" aria-hidden="true">i</div><div><h2>${recommendationTitle}</h2><p>${recommendationText}</p></div></aside>
-      <h2 class="findings-title">Ihre Notizen im Überblick</h2><p class="findings-sub">Auffällige und unklare Punkte aus Ihrer Checkliste.</p>
-      ${findings().join('')||'<div class="all-ok">✓ Sie haben bis jetzt keine Auffälligen oder unklaren Punkte notiert.</div>'}
-      <p class="legal-note"><strong>Wichtig:</strong> Diese Auswertung ist Ihre persönliche Orientierung und ersetzt keine technische Untersuchung oder ein Gutachten. Eine grüne Ampel ist keine Garantie für Fehlerfreiheit oder Unfallfreiheit. Für die Einschätzung von Schäden und Fahrzeugwert ist eine fachliche Prüfung nötig.</p>
-      <section class="after-purchase-card"><p class="eyebrow">Auto gekauft?</p><h2>Jetzt die nächsten Termine sichern</h2><p>Speichern Sie TÜV, Reifenwechsel und Inspektion lokal und übernehmen Sie die Termine in Ihren Kalender.</p><button class="button button-secondary button-full" type="button" data-action="reminders">Mein Auto – Erinnerungen ${iconArrow()}</button></section>
+      <aside class="recommendation"><div class="recommendation-icon" aria-hidden="true">i</div><div><h2>${tr(recommendation+'Title')}</h2><p>${tr(recommendation+'Text')}</p></div></aside>
+      <h2 class="findings-title">${tr('notesTitle')}</h2><p class="findings-sub">${tr('notesIntro')}</p>
+      ${findings().join('')||`<div class="all-ok">✓ ${tr('noFindings')}</div>`}
+      <p class="legal-note"><strong>${tr('important')}</strong> ${tr('summaryLegal')}</p>
+      <section class="after-purchase-card"><p class="eyebrow">${tr('carBought')}</p><h2>${tr('secureDates')}</h2><p>${tr('secureDatesText')}</p><button class="button button-secondary button-full" type="button" data-action="reminders">${tr('myCarReminders')} ${iconArrow()}</button></section>
       <div class="summary-actions">
-        <a class="button button-primary button-full" href="${contactLink()}" data-action="contact">Gutachten bei OJ anfragen ${iconArrow()}</a>
-        <button type="button" class="button button-secondary button-full" data-action="print">Auswertung drucken / als PDF sichern</button>
-        <button type="button" class="button button-text" data-action="start">Antworten bearbeiten</button>
-        <button type="button" class="button button-text" data-action="ask-reset">Neuen Check starten</button>
+        <a class="button button-primary button-full" href="${contactLink()}" data-action="contact">${tr('requestExpert')} ${iconArrow()}</a>
+        <button type="button" class="button button-secondary button-full" data-action="print">${tr('printSummary')}</button>
+        <button type="button" class="button button-text" data-action="start">${tr('editAnswers')}</button>
+        <button type="button" class="button button-text" data-action="ask-reset">${tr('newCheck')}</button>
       </div>
     </div>`;
 }
@@ -297,37 +295,34 @@ function contactLink(){return '#kontakt';}
 function renderContact(){
   const c=counts();
   const accidentContact=contactOrigin==='reminders';
-  const subject=accidentContact?'Anfrage Unfall / Fahrzeugschaden':'Anfrage Gebrauchtwagen-Check';
-  const body=accidentContact?['Guten Tag Herr Johnson,','','ich bitte um Ihre Hilfe bei einem Unfall oder Fahrzeugschaden.','','Fahrzeug:','Schaden / Was ist passiert:','Terminwunsch / Standort:','','Viele Grüße',''].join('\n'):['Guten Tag Herr Johnson,','','ich habe den OJ Gebrauchtwagen-Check genutzt und bitte um eine unabhängige Prüfung eines Fahrzeugs.','','Meine Auswertung:',`${c.ok} Punkte in Ordnung, ${c.issue} auffällig, ${c.unclear} unklar.`,'','Fahrzeug:','Terminwunsch / Standort:','','Viele Grüße',''].join('\n');
+  const subject=tr(accidentContact?'accidentSubject':'checkSubject');
+  const body=[...tr(accidentContact?'accidentEmail':'checkEmail',{ok:c.ok,issue:c.issue,unclear:c.unclear})].join('\n');
   const mailto=`mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   app.innerHTML=`
-    <section class="contact-hero"><p class="eyebrow">Unabhängige Fahrzeugprüfung</p><h1>${accidentContact?'Unfall oder Schaden? OJ hilft':'Gutachten bei OJ anfragen'}</h1><p>${accidentContact?'Nach einem Unfall oder bei einem Fahrzeugschaden erhalten Sie eine unabhängige Einschätzung. Nehmen Sie direkt Kontakt auf.':'Sie möchten ein Fahrzeug vor dem Kauf prüfen lassen oder Ihre festgehaltenen Auffälligkeiten besprechen? Nehmen Sie direkt Kontakt auf.'}</p></section>
+    <section class="contact-hero"><p class="eyebrow">${tr('independentInspection')}</p><h1>${accidentContact?tr('accidentHelp'):tr('requestExpert')}</h1><p>${accidentContact?tr('accidentContactIntro'):tr('checkContactIntro')}</p></section>
     <div class="contact-body">
-      <h2>So erreichen Sie OJ Gutachter</h2>
+      <h2>${tr('contactHeading')}</h2>
       <div class="contact-cards">
-        <a class="contact-card" href="${CONTACT.phoneLink}"><div class="contact-card-icon" aria-hidden="true">☎</div><div><strong>Mobil anrufen</strong><span>${CONTACT.phoneDisplay}</span></div></a>
-        <a class="contact-card" href="${CONTACT.landlineLink}"><div class="contact-card-icon" aria-hidden="true">☎</div><div><strong>Festnetz anrufen</strong><span>${CONTACT.landlineDisplay}</span></div></a>
-        <a class="contact-card" href="${mailto}"><div class="contact-card-icon" aria-hidden="true">@</div><div><strong>E-Mail vorbereiten</strong><span>${CONTACT.email}</span></div></a>
+        <a class="contact-card" href="${CONTACT.phoneLink}"><div class="contact-card-icon" aria-hidden="true">☎</div><div><strong>${tr('callMobile')}</strong><span dir="ltr">${CONTACT.phoneDisplay}</span></div></a>
+        <a class="contact-card" href="${CONTACT.landlineLink}"><div class="contact-card-icon" aria-hidden="true">☎</div><div><strong>${tr('callLandline')}</strong><span dir="ltr">${CONTACT.landlineDisplay}</span></div></a>
+        <a class="contact-card" href="${mailto}"><div class="contact-card-icon" aria-hidden="true">@</div><div><strong>${tr('prepareEmail')}</strong><span dir="ltr">${CONTACT.email}</span></div></a>
       </div>
-      <p class="contact-note">Die E-Mail wird in Ihrer E-Mail-App als Entwurf geöffnet. Bitte ergänzen Sie Fahrzeug, Standort und Terminwunsch${accidentContact?' sowie eine kurze Schadenbeschreibung':''}. <strong>Vor dem Absenden prüfen – nichts wird automatisch übermittelt.</strong></p>
-      <p class="contact-address"><strong>Larry O. Johnson · Kfz-Sachverständiger</strong><br>${CONTACT.address}<br><a href="${CONTACT.website}" target="_blank" rel="noopener noreferrer">www.oj-gutachter.de</a></p>
-      <p class="local-notice">${accidentContact?'Ihre Angaben bleiben auf diesem Gerät.':'Ihre Antworten bleiben auf diesem Gerät. Ergänzen Sie die Ergebnisliste bei Bedarf als PDF zu Ihrer E-Mail.'}</p>
-      <button type="button" class="button button-secondary button-full close-bottom" data-action="back-summary">${accidentContact?'← Zurück zu den Erinnerungen':'← Zurück zur Auswertung'}</button>
+      <p class="contact-note">${tr('contactNoteStart',{damage:accidentContact?tr('damageAddition'):''})}<strong>${tr('contactNoteWarning')}</strong></p>
+      <p class="contact-address"><strong>Larry O. Johnson · ${tr('profession')}</strong><br><span lang="de">${CONTACT.address}</span><br><a href="${CONTACT.website}" target="_blank" rel="noopener noreferrer">www.oj-gutachter.de</a></p>
+      <p class="local-notice">${accidentContact?tr('localDetails'):tr('localAnswersPdf')}</p>
+      <button type="button" class="button button-secondary button-full close-bottom" data-action="back-summary"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${accidentContact?tr('backToReminders'):tr('backToSummary')}</button>
     </div>`;
 }
 function renderPrivacy(){
+  const sections=tr('legalSections');
   app.innerHTML=`
-    <article class="legal-page"><button type="button" class="route-back" data-action="back">← Zurück</button><p class="eyebrow">Testversion · Hinweise</p><h1>Datenschutz & rechtliche Hinweise</h1>
-      <h2>Ihre Daten bleiben bei Ihnen</h2><p>Die Checkliste ist ohne Konto nutzbar. Sie enthält keine Werbung, kein Tracking und keine Analysewerkzeuge. Ihre Antworten und die Angaben unter „Mein Auto – Erinnerungen“ werden ausschließlich im lokalen Speicher Ihres Browsers (localStorage) auf diesem Gerät abgelegt und nicht automatisch an OJ Gutachter oder Dritte übertragen. Die Anwendung lädt keine externen Schriften, Bilder oder Skripte.</p><p>Bei „Neuen Check starten“ werden die Antworten der Kauf-Checkliste gelöscht. Die Auto-Erinnerungen lassen sich dort über „Bearbeiten“ und „Alle Angaben zu Mein Auto löschen“ separat entfernen. Sie können zusätzlich jederzeit die Website-Daten in Ihren Browser-Einstellungen löschen. Ausdrucke und PDF-Dateien liegen in Ihrem eigenen Verantwortungsbereich.</p>
-      <h2>Erinnerungen und Kalender</h2><p>Die Termine und Kilometerstände werden nur auf diesem Gerät gespeichert. Der Kalender-Download erzeugt eine .ics-Datei mit einem Alarm vier Wochen vor dem Termin. Sie entscheiden selbst, ob Sie die Datei in eine Kalender-App importieren. Dort gelten dessen Datenschutzregeln. Ohne geöffnete App gibt es in dieser Testversion keine Erinnerung im Hintergrund.</p>
-      <h2>Telefon und E-Mail</h2><p>Beim Anruf oder beim Anklicken der E-Mail-Adresse verlassen Sie den lokalen Ablauf der Anwendung. Beim E-Mail-Link öffnet sich Ihre E-Mail-App. Die Nachricht wird erst gesendet, wenn Sie dies dort selbst veranlassen. Es gilt dann auch die Datenschutzerklärung Ihres Anbieters. Die <a href="https://www.oj-gutachter.de/datenschutz" target="_blank" rel="noopener noreferrer">OJ-Website</a> enthält die weiteren Datenschutz- und Impressumsinformationen.</p>
-      <h2>Kein Gutachten, keine Garantie</h2><p>Die Checkliste und die Ampel dienen nur der allgemeinen Orientierung bei einer eigenen Besichtigung. Sie ersetzen keine fachliche Untersuchung, keinen Fahrzeugtest und kein Gutachten. Die Auswertung stellt weder eine Garantie noch eine verbindliche Aussage über Unfallfreiheit, Fehlerfreiheit, Fahrzeugwert oder Verkehrssicherheit dar. Schäden und Mängel können auch bei einer grünen Ampel vorhanden sein.</p>
-      <h2>Sicherheit bei der Besichtigung</h2><p>Prüfen Sie das Fahrzeug nur im sicheren Stand und nach Absprache mit dem Verkäufer. Keine heißen Bauteile, beweglichen Teile oder Drucksysteme berühren oder öffnen. Nicht unter ein Fahrzeug greifen oder klettern, das nicht fachgerecht gesichert ist. Probefahrten nur mit gültiger Zulassung, ausreichendem Versicherungsschutz und passender Fahrerlaubnis.</p>
-      <h2>Gebrauchtwagen, keine Unfallmeldung</h2><p>Diese Testversion begleitet einen Gebrauchtwagenkauf. Für die Meldung eines Unfallschadens nutzen Sie bitte den separaten OJ Schadenmelder auf der OJ-Website.</p>
-      <p class="legal-note">Rechtliche Hinweise sind allgemeine Informationen, keine Rechtsberatung im Einzelfall.</p>
-      <button type="button" class="button button-secondary button-full close-bottom" data-action="back">Zurück</button>
+    <article class="legal-page"><button type="button" class="route-back" data-action="back"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('back')}</button><p class="eyebrow">${tr('legalEyebrow')}</p><h1>${tr('privacyTitle')}</h1>
+      ${sections.map((section,index)=>`<h2>${section.title}</h2>${section.paragraphs.map(text=>`<p>${index===2?text.split(tr('OJWebsiteLabel')).join(`<a href="https://www.oj-gutachter.de/datenschutz" target="_blank" rel="noopener noreferrer">OJ-Website</a>`):text}</p>`).join('')}`).join('')}
+      <p class="legal-note">${tr('legalDisclaimer')}</p>
+      <button type="button" class="button button-secondary button-full close-bottom" data-action="back"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('back')}</button>
     </article>`;
 }
+
 function showToast(message){
   const toast=document.getElementById('toast');
   toast.textContent=message;toast.classList.add('visible');
@@ -339,17 +334,17 @@ function handleAction(action,element){
     save();goTo('check');
   }else if(action==='answer'){
     const key=element.dataset.key,value=element.dataset.value;
-    if(!/^\d+-\d+$/.test(key)||!STATUS[value]) return;
+    if(!/^\d+-\d+$/.test(key)||!sourceStatus[value]) return;
     state.answers[key]=value;save();renderChecklist();
     document.querySelector(`[data-key="${key}"]`)?.focus();
   }else if(action==='next'){
-    state.step=Math.min(state.step+1,STEPS.length-1);save();goTo('check');
+    state.step=Math.min(state.step+1,sourceSteps.length-1);save();goTo('check');
   }else if(action==='previous'){
     if(state.step===0) goTo('home');
     else {state.step=Math.max(0,state.step-1);save();goTo('check');}
   }else if(action==='goto-step'){
     const step=Number(element.dataset.step);
-    if(Number.isInteger(step)&&step>=0&&step<STEPS.length){state.step=step;save();goTo('check');}
+    if(Number.isInteger(step)&&step>=0&&step<sourceSteps.length){state.step=step;save();goTo('check');}
   }else if(action==='summary'){
     if(isComplete()&&!state.completedAt) state.completedAt=new Date().toISOString();
     save();goTo('summary');
@@ -367,7 +362,7 @@ function handleAction(action,element){
   }else if(action==='cancel-reset'){
     document.getElementById('resetDialog').close();
   }else if(action==='confirm-reset'){
-    state=createState();save();document.getElementById('resetDialog').close();goTo('home');showToast('Neuer Check – bisherige Antworten wurden gelöscht.');
+    state=createState();save();document.getElementById('resetDialog').close();goTo('home');showToast(tr('resetDone'));
   }else if(action==='print'){
     window.print();
   }else if(action==='privacy'){

@@ -1,4 +1,4 @@
-# OJ Gebrauchtwagen-Check – lokale Testversion
+# OJ Gebrauchtwagen-Check – Testversion
 
 Mobile-first Web-App für die geführte Besichtigung eines Gebrauchtwagens. Die Anwendung ist statisch und ohne Serverlogik umgesetzt. Sie ist vom Farbwirbel-Spiel und von der OJ-Website getrennt.
 
@@ -18,13 +18,17 @@ Mobile-first Web-App für die geführte Besichtigung eines Gebrauchtwagens. Die 
 - HU-Hinweis: Pkw in der Regel alle 24 Monate, Neuwagen erstmals nach 36 Monaten. Maßgeblich bleiben Prüfbericht und Plakette (siehe ADAC HU/AU: https://www.adac.de/rund-ums-fahrzeug/reparatur-pflege-wartung/hu-und-au/hu-und-au/).
 - Je Termin Download einer ganztägigen `.ics`-Kalenderdatei mit VALARM vier Wochen vorher um 08:00 Uhr Ortszeit. Der Import erfolgt erst manuell durch den Nutzer. Warnung: Bei der HU steht der Kalendertag für den Plakettenmonat, nicht für eine feste Werkstattbuchung.
 - Browser-Benachrichtigungen/Push bewusst nicht eingebaut: ohne geöffnete App keine Hintergrunderinnerung. Spätere native App: lokale Notifications mit Capacitor, ohne Server oder Tracking; native iPhone-/Android-Integration separat testen.
+- Neue Vorschau unter `neu/`: Aussehen „Automatisch“, „Hell“ oder „Dunkel“. Automatisch folgt der Telefon-Einstellung; die Wahl wird nur lokal unter `oj-gebrauchtwagen-check.theme.v1` gespeichert. Das frühe Skript verhindert einen falschen Farbblitz vor dem ersten Aufbau und passt die Browser-Theme-Farbe an.
+- Sechs Sprachen: Deutsch, English, Türkçe, العربية, Polski und Русский. Ohne gespeicherte Wahl wird eine unterstützte Browsersprache erkannt, sonst Deutsch. Die Wahl unter `oj-gebrauchtwagen-check.language.v1`, alle 46 Prüfpunkte, Auswertung, Kontakt-/E-Mail-Texte und drei `.ics`-Texte sind sprachspezifisch. Arabisch verwendet vollständiges RTL.
+- Die fremdsprachigen Fassungen sind sorgfältig vorbereitete Übersetzungsentwürfe, aber keine muttersprachliche Schlussredaktion. Vor einem produktiven Release ist eine fachliche und muttersprachliche Kontrolle vorgesehen.
+- Die alte Root-Version bleibt unverändert. Nur der separate Testpfad `/neu/` enthält die neuen Funktionen.
 - Große Schrift (Haupttext mindestens 18px, Hilfetext mindestens 17px), mindestens 48px hohe Bedienelemente und beschriftete Status statt reiner Farbcodierung.
 - Sichtbarer „Testversion“-Hinweis und `noindex, nofollow, noarchive` per Meta-Tag sowie Disallow in `robots.txt`. Das reduziert Suchmaschinen-Auffindbarkeit, macht den öffentlichen Link aber nicht privat.
 - Rechtliche und sicherheitsbezogene Hinweise, keine Erfolgs- oder Unfallfreiheitsgarantie.
 
 ## Datenschutz und Offline-Nutzung
 
-Ihre Antworten werden nur unter `oj-gebrauchtwagen-check.v1`, Fahrzeug-/Termindaten unter `oj-gebrauchtwagen-check.reminders.v1` im localStorage des jeweiligen Browsers gespeichert. Es gibt kein Konto, keine Werbung, kein Tracking, keine externen Schriften, Skripte oder API-Aufrufe. Der Service Worker speichert ausschließlich die eigenen statischen Anwendungsdateien für die Offline-Nutzung. Nach einer Änderung muss der Cache-Namen in `service-worker.js` angehoben werden.
+Einstellungen für Sprache und Aussehen bleiben ebenfalls ausschließlich lokal. Ihre Antworten werden unter `oj-gebrauchtwagen-check.v1`, Fahrzeug-/Termindaten unter `oj-gebrauchtwagen-check.reminders.v1` im localStorage des jeweiligen Browsers gespeichert. Es gibt kein Konto, keine Werbung, kein Tracking, keine externen Schriften, Skripte oder API-Aufrufe. Der Service Worker speichert ausschließlich die eigenen statischen Anwendungsdateien für die Offline-Nutzung. Nach einer Änderung muss der Cache-Namen in `service-worker.js` angehoben werden.
 
 Das Manifest ist auf `display: standalone` eingestellt; App-Symbole und Apple-Meta-Tags sind vorhanden. Alle Pfade sind relativ, damit der statische Ordner später mit Capacitor als iOS-/Android-Hülle verwendet werden kann. Für eine echte App-Veröffentlichung sind separates App-Konto, Datenschutz-/Store-Prüfung und die Freigabe des GF erforderlich.
 
@@ -44,7 +48,15 @@ node tests/reminders-test.cjs
 node tests/accessibility-test.cjs
 ```
 
-Der Basistest erwartet Google Chrome unter `/usr/bin/google-chrome`. Er prüft den Ablauf in mobiler Ansicht 390 × 844 Pixel, Speicherung/Neuladen, Reset, rote und grüne Auswertung, Kontaktlinks, Offline-Neuladen, horizontales Layout bis 320 Pixel und Konsolenfehler. Die Testdateien sind nicht Teil der öffentlichen Auslieferung. Der separate Erinnerungs-Testdeckt Eingabe, Speichern/Neuladen, Löschen, Ampel, Kontaktlinks und drei echte Kalender-Downloads ab. Der Bedienungstest prüft 390×844 und 320×740 Pixel, Mindestschrift und Tippflächen sowie wichtige Kontraste.
+Der Basistest erwartet Google Chrome unter `/usr/bin/google-chrome`. Er prüft den Ablauf in mobiler Ansicht 390 × 844 Pixel, Speicherung/Neuladen, Reset, rote und grüne Auswertung, Kontaktlinks, Offline-Neuladen, horizontales Layout bis 320 Pixel und Konsolenfehler. Die Testdateien sind nicht Teil der öffentlichen Auslieferung. Der separate Erinnerungs-Test deckt Eingabe, Speichern/Neuladen, Löschen, Ampel, Kontaktlinks und drei echte Kalender-Downloads ab. Der Bedienungstest prüft 390×844 und 320×740 Pixel, Mindestschrift und Tippflächen sowie wichtige Kontraste.
+
+## Aktuelle Funktionsprüfung
+
+06.11.2026, 21:31 Uhr MEZ bestanden: Alle sechs Sprachen durchliefen je 87 lokale Prüfungen in Chrome, darunter alle 46 Prüfpunkte, Auswertung, Kontakt-E-Mail-Entwürfe, Erinnerungen, Theme-/Sprachpersistenz, Offline und drei echte UTF-8-Kalender-Downloads. Spracherkennung enthielt `fr-FR → de`. Arabisch zeigt vollständiges RTL; zusätzliche Layoutprüfungen für Türkisch und Arabisch durchliefen Start, Prüfschritt, Kontakt, Erinnerungen, Formular und Rechtstexte in 390 und 320 Pixeln ohne horizontalen Überlauf oder sichtbare Bedienfläche unter 48 px.
+
+Alle 18 Kalenderdateien wurden mit `icalendar` unabhängig eingelesen; physische Zeilen enthalten einschließlich Fortsetzungszeichen maximal 75 Bytes. 594 geprüfte sichtbare Textpaare erreichten mindestens 4,9058:1 Kontrast. Service Worker: `oj-gebrauchtwagen-check-neu-v8`. Berichte lokal unter `tests/artifacts/neu-i18n-report.json`, `calendar-i18n-parser-report.json` und `text-integrity-report.txt`.
+
+Die fünf geprüften mobilen Abschlussbilder in 390 × 844 Pixel: `screenshots/neu-theme-light.png`, `neu-theme-dark.png`, `neu-lang-switch.png`, `neu-start-tr.png` und `neu-start-ar.png`. Keine muttersprachliche Schlussredaktion der fünf Fremdsprachen; vor einem produktiven Release fachliche Durchsicht durch Muttersprachler.
 
 ## Quellen von Kontaktdaten und Branding
 
@@ -77,8 +89,14 @@ Sieben aktualisierte Präsentationsbilder liegen unter `screenshots/`, darunter 
 
 ## Nicht veröffentlichte Logo-Alternativen
 
-`logo-entwuerfe/` enthält drei 1024×1024-PNG-Alternativen aus dem vorhandenen OJ-Zeichen: Weinrot/Weiß, Weiß/Weinrot sowie weißer Kreis auf Weinrot. Dazu gibt es 128px-Vorschauen und `uebersicht.png`. Das tatsächliche App- und Kopfzeilenlogo wurde nicht verändert. Diese Entwürfe gehören nicht zur Pages-Ausleitung.
+`logo-entwuerfe/` enthält drei 1024×1024-PNG-Alternativen aus dem vorhandenen OJ-Zeichen: Weinrot/Weiß, Weiß/Weinrot sowie weißer Kreis auf Weinrot. Dazu gibt es 128px-Vorschauen und `uebersicht.png`. Das tatsächliche App- und Kopfzeilenlogo wurde nicht verändert. Diese Entwürfe gehören nicht zur Pages-Auslieferung.
 
 ## Öffentlicher Testlink
 
-Nach ausdrücklicher GF-Freigabe: `https://oj-gutachter.github.io/gebrauchtwagen-check/`. Die URL wird nach dem Pages-Build per curl und im Browser nochmals verifiziert. Keine Mails, keine App-Store-Einreichung.
+Nach ausdrücklicher GF-Freigabe veröffentlicht: `https://oj-gutachter.github.io/gebrauchtwagen-check/`. Pages-Build `built`, Startseite/Manifest/Service Worker per curl mit HTTP 200 bestätigt. Browser-Livetest 06.11.2026 um 19:27 Uhr MEZ: Eingabe/Speicherung, drei .ics-Downloads, Neuladen, Offline, keine Konsolenfehler und keine externen Requests. Nachweis nur lokal: `tests/artifacts/live-report.json`. Keine Mails, keine App-Store-Einreichung.
+
+## Marktcheck
+
+Der Marktcheck vom 06.11.2026 mit acht geprüften Beispielen steht unter der lokalen Datei `marktcheck.md`. Links und sichtbare Preis-/Bewertungsangaben stammen von Anbieter- oder Store-Seiten; keine Bewertung wird für Angebote ohne sichtbare Bewertung behauptet.
+
+Aktualisierter technischer Stand (Dokumentation und Live-Prüfung) ist nach dem ersten Pages-Commit lokal ergänzt; die eingesetzten Anwendungsdateien sind unverändert und live getestet.

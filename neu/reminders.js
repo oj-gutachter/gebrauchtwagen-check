@@ -1,3 +1,4 @@
+const locale=()=>({de:'de-DE',en:'en-GB',tr:'tr-TR',ar:'ar-DE',pl:'pl-PL',ru:'ru-RU'}[currentLanguage]||'de-DE');
 'use strict';
 const REMINDER_KEY='oj-gebrauchtwagen-check.reminders.v1';
 function createReminderState(){return {vehicleName:'',licensePlate:'',huMonth:'',tireSeason:'',tireDate:'',inspectionDate:'',currentMileage:null,inspectionMileage:null};}
@@ -10,7 +11,7 @@ function normalizeReminders(raw){
   return out;
 }
 function loadReminders(){try{reminderState=normalizeReminders(JSON.parse(localStorage.getItem(REMINDER_KEY)||'null'));}catch(_){reminderState=createReminderState();}}
-function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(reminderState));}catch(_){showToast('Termine konnten nicht dauerhaft gespeichert werden.');}}
+function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(reminderState));}catch(_){showToast(tr('remindersStorageError'));}}
 (() => {
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
   const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -31,29 +32,29 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
   function isoDate(date) {return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');}
   function today() {const date=new Date();return isoDate(new Date(date.getFullYear(),date.getMonth(),date.getDate()));}
   function daysUntil(value) {return Math.round((localDate(value)-localDate(today()))/86400000);}
-  function formatDate(value) {return localDate(value).toLocaleDateString('de-DE');}
+  function formatDate(value) {return localDate(value).toLocaleDateString(locale());}
   function dateStatus(key, value, kind) {
     const days=daysUntil(value);
     let text;
-    if(days<0)text=`Seit ${Math.abs(days)} ${Math.abs(days)===1?'Tag':'Tagen'} überfällig`;
-    else if(days===0)text=key==='inspection'?'Heute fällig':'Heute';
-    else if(days===1)text='Noch 1 Tag';
-    else text=`Noch ${days} Tage`;
-    let level='green',badge='Im Blick';
-    if(days<0){level='red';badge='Überfällig';}
-    else if(days<=SOON_DAYS){level='amber';badge=days<=14?'Jetzt einplanen':'Fällig bald';}
-    else if(kind==='tires')badge='Termin gesetzt';
+    if(days<0)text=tr('overdueDays',{n:Math.abs(days)});
+    else if(days===0)text=key==='inspection'?tr('dueToday'):tr('today');
+    else if(days===1)text=tr('oneDayLeft');
+    else text=tr('daysLeft',{n:days});
+    let level='green',badge=tr('inView');
+    if(days<0){level='red';badge=tr('overdue');}
+    else if(days<=SOON_DAYS){level='amber';badge=days<=14?tr('scheduleNow'):tr('dueSoon');}
+    else if(kind==='tires')badge=tr('dateSet');
     return {key,kind:'date',date:value,days,level,badge,text};
   }
   function huBlock() {
-    if(!MONTH_RE.test(reminderState.huMonth))return [];
+    if(!reminderState.huMonth||!MONTH_RE.test(reminderState.huMonth))return [];
     const lastDay=new Date(Number(reminderState.huMonth.slice(0,4)),Number(reminderState.huMonth.slice(5,7)),0);
     const status=dateStatus('hu',isoDate(lastDay),'hu');
     status.endOfMonth=true;
     const [year,month]=reminderState.huMonth.split('-');
     status.dateLabel=`${month}/${year}`;
-    status.text=status.days<0?'Plakettenmonat abgelaufen':status.text;
-    if(status.days>=0&&new Date().getMonth()===lastDay.getMonth()&&new Date().getFullYear()===lastDay.getFullYear()){status.level='amber';status.badge='Plakettenmonat';}
+    status.text=status.days<0?tr('stickerMonthExpired'):status.text;
+    if(status.days>=0&&new Date().getMonth()===lastDay.getMonth()&&new Date().getFullYear()===lastDay.getFullYear()){status.level='amber';status.badge=tr('stickerMonth');}
     return [status];
   }
   function suggestedTireDate(season) {
@@ -70,68 +71,68 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
   function mileageStatus() {
     if(reminderState.inspectionMileage===null||reminderState.currentMileage===null)return null;
     const difference=reminderState.inspectionMileage-reminderState.currentMileage;
-    let level='green',badge='Im Blick';
-    if(difference<0){level='red';badge='Grenze überschritten';}
-    else if(difference<=1000){level='amber';badge=difference<=100?'Werkstatt einplanen':'Fällig bald';}
-    return {level,badge,difference,text:difference<0?`${Math.abs(difference).toLocaleString('de-DE')} km über dem eingetragenen Wert`:`Noch ${difference.toLocaleString('de-DE')} km`};
+    let level='green',badge=tr('inView');
+    if(difference<0){level='red';badge=tr('limitExceeded');}
+    else if(difference<=1000){level='amber';badge=difference<=100?tr('scheduleWorkshop'):tr('dueSoon');}
+    return {level,badge,difference,text:tr(difference<0?'mileageOver':'mileageLeft',{n:Math.abs(difference).toLocaleString(locale())})};
   }
-  function tireLabel() {return reminderState.tireSeason==='summer'?'Sommerreifen':'Winterreifen';}
+  function tireLabel() {return reminderState.tireSeason==='summer'?tr('summerTires'):tr('winterTires');}
   function reminderForm() {
     return `<div class="reminder-page">
-      <button type="button" class="route-back" data-action="reminders">← Zurück zur Übersicht</button>
-      <p class="eyebrow">Nach dem Autokauf</p><h1>Mein Auto eintragen</h1><p class="page-intro">Nur die gewünschten Angaben ausfüllen. Alle Daten bleiben auf diesem Gerät.</p>
+      <button type="button" class="route-back" data-action="reminders"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('backToOverview')}</button>
+      <p class="eyebrow">${tr('afterPurchase')}</p><h1>${tr('enterMyCar')}</h1><p class="page-intro">${tr('formIntro')}</p>
       <form id="reminderForm" class="reminder-form" novalidate>
-        <fieldset><legend>Ihr Fahrzeug</legend>
-          <label for="vehicleName">Fahrzeugname <span>optional</span></label><input id="vehicleName" name="vehicleName" value="${escapeHtml(reminderState.vehicleName)}" maxlength="60" placeholder="z. B. Familienauto" autocomplete="off">
-          <label for="licensePlate">Kennzeichen <span>optional</span></label><input id="licensePlate" name="licensePlate" value="${escapeHtml(reminderState.licensePlate)}" maxlength="20" placeholder="z. B. DO-AB 1234" autocomplete="off">
+        <fieldset><legend>${tr('yourVehicle')}</legend>
+          <label for="vehicleName">${tr('vehicleName')} <span>${tr('optional')}</span></label><input id="vehicleName" name="vehicleName" value="${escapeHtml(reminderState.vehicleName)}" maxlength="60" placeholder="${tr('vehicleNameExample')}" autocomplete="off">
+          <label for="licensePlate">${tr('licensePlate')} <span>${tr('optional')}</span></label><input id="licensePlate" name="licensePlate" value="${escapeHtml(reminderState.licensePlate)}" maxlength="20" placeholder="${tr('example',{value:'DO-AB 1234'})}" autocomplete="off">
         </fieldset>
-        <fieldset><legend>TÜV / HU</legend><p class="form-help">Monat und Jahr von der Plakette oder dem Prüfbericht übernehmen. Der Monat zählt bis zum Monatsende.</p>
-          <label for="huMonth">Nächste Hauptuntersuchung</label><input id="huMonth" name="huMonth" type="month" value="${escapeHtml(reminderState.huMonth)}">
-          <p class="expert-inline"><strong>Fachlich eingeordnet:</strong> Pkw benötigen die HU in der Regel alle 24 Monate. Bei Neuwagen ist die erste HU nach 36 Monaten fällig. Der offizielle Prüfbericht und die Plakette sind maßgeblich.</p>
+        <fieldset><legend>${tr('inspectionLabel')}</legend><p class="form-help">${tr('huFormHelp')}</p>
+          <label for="huMonth">${tr('nextInspection')}</label><input id="huMonth" name="huMonth" type="month" value="${escapeHtml(reminderState.huMonth)}">
+          <p class="expert-inline"><strong>${tr('expertClassification')}</strong> ${tr('huExpertText')}</p>
         </fieldset>
-        <fieldset><legend>Reifenwechsel</legend><p class="form-help">Die Jahreszeit ist eine Orientierung. Wetterlage und tatsächliche Bedingungen sind entscheidend; es gibt keine starren Deutschlandtermine für alle Pkw.</p>
-          <label for="tireSeason">Welche Reifen sollen montiert werden?</label><select id="tireSeason" name="tireSeason"><option value="" ${!reminderState.tireSeason?'selected':''}>Keine Reifen-Erinnerung</option><option value="summer" ${reminderState.tireSeason==='summer'?'selected':''}>Sommerreifen – Standard: eine Woche nach Ostersonntag</option><option value="winter" ${reminderState.tireSeason==='winter'?'selected':''}>Winterreifen – Standard: 15. Oktober</option></select>
-          <label for="tireDate">Gewünschter Reifen-Termin</label><input id="tireDate" name="tireDate" type="date" value="${escapeHtml(reminderState.tireDate)}" ${!reminderState.tireSeason?'disabled':''}><p class="form-help">O bis O: von Oktober bis Ostern als Merkhilfe. Den Termin können Sie selbst ändern.</p>
+        <fieldset><legend>${tr('tireChange')}</legend><p class="form-help">${tr('tireFormHelp')}</p>
+          <label for="tireSeason">${tr('whichTires')}</label><select id="tireSeason" name="tireSeason"><option value="" ${!reminderState.tireSeason?'selected':''}>${tr('noTireReminder')}</option><option value="summer" ${reminderState.tireSeason==='summer'?'selected':''}>${tr('summerTireDefault')}</option><option value="winter" ${reminderState.tireSeason==='winter'?'selected':''}>${tr('winterTireDefault')}</option></select>
+          <label for="tireDate">${tr('desiredTireDate')}</label><input id="tireDate" name="tireDate" type="date" value="${escapeHtml(reminderState.tireDate)}" ${!reminderState.tireSeason?'disabled':''}><p class="form-help">${tr('tireDateHelp')}</p>
         </fieldset>
-        <fieldset><legend>Inspektion / Ölwechsel</legend><p class="form-help">Datum und Kilometergrenze können einzeln oder gemeinsam eingetragen werden. Herstellerangaben im Serviceplan haben Vorrang.</p>
-          <label for="inspectionDate">Nächster Termin <span>optional</span></label><input id="inspectionDate" name="inspectionDate" type="date" value="${escapeHtml(reminderState.inspectionDate)}">
-          <label for="currentMileage">Aktueller Kilometerstand <span>für den km-Countdown</span></label><input id="currentMileage" name="currentMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.currentMileage??''}" placeholder="z. B. 82500">
-          <label for="inspectionMileage">Inspektion spätestens bei <span>km, optional</span></label><input id="inspectionMileage" name="inspectionMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.inspectionMileage??''}" placeholder="z. B. 100000">
+        <fieldset><legend>${tr('serviceOil')}</legend><p class="form-help">${tr('serviceFormHelp')}</p>
+          <label for="inspectionDate">${tr('nextDate')} <span>${tr('optional')}</span></label><input id="inspectionDate" name="inspectionDate" type="date" value="${escapeHtml(reminderState.inspectionDate)}">
+          <label for="currentMileage">${tr('currentMileage')} <span>${tr('mileageCountdown')}</span></label><input id="currentMileage" name="currentMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.currentMileage??''}" placeholder="${tr('example',{value:'82500'})}">
+          <label for="inspectionMileage">${tr('serviceByMileage')} <span>${tr('kmOptional')}</span></label><input id="inspectionMileage" name="inspectionMileage" type="number" inputmode="numeric" min="0" max="9999999" step="1" value="${reminderState.inspectionMileage??''}" placeholder="${tr('example',{value:'100000'})}">
         </fieldset>
-        <label class="consent-check"><input type="checkbox" name="clearReminders"><span>Alle Angaben zu „Mein Auto“ löschen. Die Kauf-Checkliste bleibt erhalten.</span></label>
+        <label class="consent-check"><input type="checkbox" name="clearReminders"><span>${tr('clearCarDetails')}</span></label>
         <div id="reminderFormError" class="form-error" role="alert" tabindex="-1" hidden></div>
-        <button class="button button-primary button-full" type="submit">Angaben speichern ${iconArrow()}</button>
-        <button class="button button-secondary button-full" type="button" data-action="reminders">Abbrechen</button>
+        <button class="button button-primary button-full" type="submit">${tr('saveDetails')} ${iconArrow()}</button>
+        <button class="button button-secondary button-full" type="button" data-action="reminders">${tr('cancel')}</button>
       </form></div>`;
   }
   function overview() {
-    const blocks=reminderBlocks(),mileage=mileageStatus(),title=reminderState.vehicleName||'Ihr Fahrzeug';
-    const details=[reminderState.licensePlate,reminderState.currentMileage!==null?`${reminderState.currentMileage.toLocaleString('de-DE')} km aktuell`:''].filter(Boolean).join(' · ');
+    const blocks=reminderBlocks(),mileage=mileageStatus(),title=reminderState.vehicleName||tr('yourVehicle');
+    const details=[reminderState.licensePlate,reminderState.currentMileage!==null?tr('mileageCurrent',{n:reminderState.currentMileage.toLocaleString(locale())}):''].filter(Boolean).join(' · ');
     const findBlock=key=>blocks.find(block=>block.key===key);
     const hu=findBlock('hu'),tires=findBlock('tires'),inspection=findBlock('inspection');
-    const calendarButton=key=>`<button class="button button-secondary button-full calendar-download" type="button" data-reminder-calendar="${key}">In Kalender übernehmen · Alarm 4 Wochen vorher</button>`;
+    const calendarButton=key=>`<button class="button button-secondary button-full calendar-download" type="button" data-reminder-calendar="${key}">${tr('calendarButton')}</button>`;
     const card=(key,title,status)=>`<article class="reminder-card ${status.level}" data-reminder-status="${status.level}" data-reminder-key="${key}">
       <div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">${key==='hu'?'HU':key==='tires'?'↻':'✓'}</span><span class="due-badge">${status.badge}</span></div>
-      <h2>${title}</h2><p class="reminder-date">${status.dateLabel||formatDate(status.date)}${status.endOfMonth?' · bis Monatsende':''}</p><p class="reminder-countdown">${status.text}</p>
-      <p class="reminder-explanation">${key==='hu'?'Die HU-Ansicht richtet sich nach dem Plakettenmonat, nicht nach einem einzelnen Tag.':key==='tires'?'Der Termin ist ein frei wählbarer Vorschlag. Reifen passend zu Wetter und Fahrbedingungen wechseln.':'Herstellerangaben und Wartungsplan Ihres Fahrzeugs sind maßgeblich.'}</p>${calendarButton(key)}</article>`;
-    return `<section class="reminder-hero"><button type="button" class="route-back route-back-light" data-action="home">← Zur Startseite</button><p class="eyebrow">Nach dem Autokauf</p><h1>Mein Auto – Erinnerungen</h1><p>Wichtige Fahrzeugtermine im Blick. Ohne Konto und ohne dass Daten das Gerät verlassen.</p></section>
+      <h2>${title}</h2><p class="reminder-date">${status.dateLabel||formatDate(status.date)}${status.endOfMonth?' '+tr('untilEndMonth'):''}</p><p class="reminder-countdown">${status.text}</p>
+      <p class="reminder-explanation">${tr(key==='hu'?'huCardHelp':key==='tires'?'tireCardHelp':'serviceCardHelp')}</p>${calendarButton(key)}</article>`;
+    return `<section class="reminder-hero"><button type="button" class="route-back route-back-light" data-action="home"><span aria-hidden="true">${currentLanguage==='ar'?'→':'←'}</span> ${tr('backToStart')}</button><p class="eyebrow">${tr('afterPurchase')}</p><h1>${tr('myCarReminders')}</h1><p>${tr('reminderHeroText')}</p></section>
       <div class="reminder-body">
-      <section class="vehicle-overview"><div><p class="eyebrow">Ihre Fahrzeugübersicht</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(details||'Noch kein Name oder Kennzeichen eingetragen.')}</p></div><button class="button button-secondary" type="button" data-action="edit-reminders">Bearbeiten</button></section>
-      ${!blocks.length&&!mileage?'<div class="empty-reminders"><h2>Noch keine Termine eingetragen</h2><p>Legen Sie TÜV, Reifenwechsel oder Inspektion an. Danach sehen Sie hier den Countdown und die Ampel.</p><button class="button button-primary" type="button" data-action="edit-reminders">Erste Erinnerung anlegen</button></div>':''}
-      <div class="reminder-stats" aria-label="Ampel und Fristen"><span class="green-dot"></span> Mehr als 8 Wochen <span class="amber-dot"></span> Bald <span class="red-dot"></span> Überfällig</div>
-      <section class="reminders-list" aria-label="Ihre Erinnerungen">
-        ${hu?card('hu','TÜV / HU',hu):''}${tires?card('tires',`Reifenwechsel · ${tireLabel()}`,tires):''}${inspection?card('inspection','Inspektion / Ölwechsel',inspection):''}
-        ${mileage?`<article class="reminder-card ${mileage.level}" data-reminder-status="${mileage.level}"><div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">km</span><span class="due-badge">${mileage.badge}</span></div><h2>Inspektion nach Kilometerstand</h2><p class="reminder-date">Bei ${reminderState.inspectionMileage.toLocaleString('de-DE')} km</p><p class="reminder-countdown">${mileage.text}</p><p class="reminder-explanation">Der km-Wert ändert sich nicht selbst. Tragen Sie den aktuellen Tachostand nach, wenn Sie ihn aktualisieren möchten.</p></article>`:''}
+      <section class="vehicle-overview"><div><p class="eyebrow">${tr('vehicleOverview')}</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(details||tr('noVehicleDetails'))}</p></div><button class="button button-secondary" type="button" data-action="edit-reminders">${tr('edit')}</button></section>
+      ${!blocks.length&&!mileage?`<div class="empty-reminders"><h2>${tr('noDates')}</h2><p>${tr('noDatesText')}</p><button class="button button-primary" type="button" data-action="edit-reminders">${tr('createFirstReminder')}</button></div>`:''}
+      <div class="reminder-stats" aria-label="${tr('trafficLightLabel')}"><span class="green-dot"></span> ${tr('moreThanEightWeeks')} <span class="amber-dot"></span> ${tr('soon')} <span class="red-dot"></span> ${tr('overdue')}</div>
+      <section class="reminders-list" aria-label="${tr('yourReminders')}">
+        ${hu?card('hu',tr('inspectionLabel'),hu):''}${tires?card('tires',tr('tireChangeLabel',{tire:tireLabel()}),tires):''}${inspection?card('inspection',tr('serviceOil'),inspection):''}
+        ${mileage?`<article class="reminder-card ${mileage.level}" data-reminder-status="${mileage.level}"><div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">km</span><span class="due-badge">${mileage.badge}</span></div><h2>${tr('serviceByMileageTitle')}</h2><p class="reminder-date">${tr('mileageAt',{n:reminderState.inspectionMileage.toLocaleString(locale())})}</p><p class="reminder-countdown">${mileage.text}</p><p class="reminder-explanation">${tr('mileageCardHelp')}</p></article>`:''}
       </section>
-      <p class="legal-note"><strong>Wichtig:</strong> Die Übersicht erscheint beim Öffnen der App. Eine .ics-Datei kann in Apple Kalender und viele andere Kalender-Apps importiert werden. Prüfen Sie den importierten Termin und den Alarm dort. Fristen und Serviceintervalle bitte zusätzlich anhand der Fahrzeugpapiere und Herstellerangaben prüfen.</p>
-      <aside class="oj-help-reminder"><p class="eyebrow">Unabhängige Hilfe</p><h2>Unfall oder Schaden? OJ hilft</h2><p>Lassen Sie einen Unfallschaden unabhängig einschätzen.</p><button class="button button-primary button-full" type="button" data-action="contact">Kontakt zu OJ ${iconArrow()}</button></aside></div>`;
+      <p class="legal-note"><strong>${tr('important')}</strong> ${tr('calendarLegal')}</p>
+      <aside class="oj-help-reminder"><p class="eyebrow">${tr('independentHelp')}</p><h2>${tr('accidentHelp')}</h2><p>${tr('accidentExpertHelp')}</p><button class="button button-primary button-full" type="button" data-action="contact">${tr('contactOJ')} ${iconArrow()}</button></aside></div>`;
   }
   function reminderData() {
-    const name=reminderState.vehicleName||'Mein Auto',plate=reminderState.licensePlate?` (${reminderState.licensePlate})`:'';
+    const name=reminderState.vehicleName||tr('myCar'),plate=reminderState.licensePlate?` (${reminderState.licensePlate})`:'';
     return [
-      {key:'hu',valid:MONTH_RE.test(reminderState.huMonth),date:huBlock()[0]?.date,title:`TÜV / HU – ${name}${plate}`,description:'Hauptuntersuchung: Termin bis zum Ende des Plakettenmonats vereinbaren. Prüfbericht und Fahrzeugpapiere bereithalten.'},
-      {key:'tires',valid:['summer','winter'].includes(reminderState.tireSeason)&&validDate(reminderState.tireDate),date:reminderState.tireDate,title:`${tireLabel()} wechseln – ${name}${plate}`,description:'Reifenwechsel nach eigener Terminwahl; Wetter und Fahrbedingungen beachten.'},
-      {key:'inspection',valid:validDate(reminderState.inspectionDate),date:reminderState.inspectionDate,title:`Inspektion / Ölwechsel – ${name}${plate}`,description:`Wartungstermin. Herstellerangaben beachten.${reminderState.inspectionMileage!==null?` Eingetragene Kilometergrenze: ${reminderState.inspectionMileage} km.`:''}`}
+      {key:'hu',valid:MONTH_RE.test(reminderState.huMonth)&&!!reminderState.huMonth&&validDate(huBlock()[0]?.date),date:huBlock()[0]?.date,title:`${tr('inspectionLabel')} – ${name}${plate}`,description:tr('calendarHuDescription')},
+      {key:'tires',valid:['summer','winter'].includes(reminderState.tireSeason),date:reminderState.tireDate||suggestedTireDate(reminderState.tireSeason),title:`${tr('changeTireTitle',{tire:tireLabel()})} – ${name}${plate}`,description:tr('calendarTireDescription')},
+      {key:'inspection',valid:validDate(reminderState.inspectionDate),date:reminderState.inspectionDate,title:`${tr('serviceOil')} – ${name}${plate}`,description:tr('calendarServiceDescription',{mileage:reminderState.inspectionMileage!==null?tr('calendarMileageLimit',{n:reminderState.inspectionMileage}):''})}
     ];
   }
   function icsEscape(value) {return String(value).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');}
@@ -140,47 +141,48 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
     let current='',byteLength=0;
     for(const character of Array.from(line)){
       const size=utf8.encode(character).length;
-      if(byteLength+size>75){lines.push(current);current=character;byteLength=size;}
+      // RFC 5545: the space introducing each physical continuation line is part of its 75-octet limit.
+      if(byteLength+size+(!lines.length?0:1)>75){lines.push(current);current=character;byteLength=size+1;}
       else{current+=character;byteLength+=size;}
     }
-    lines.push(current);return lines.join('\r\n ');
+    lines.push(current);return lines.length>1?lines[0]+'\r\n '+lines.slice(1).join('\r\n '):lines[0];
   }
   function compactDate(value) {return value.replace(/-/g,'');}
   function stampedDate(date) {return date.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');}
   function createCalendar(item) {
-    if(!item||!validDate(item.date))throw new Error('Kalendertermin fehlt oder ist ungültig.');
+    if(!item||!validDate(item.date))throw new Error(tr('calendarMissing'));
     const alarmDate=isoDate(shifted(localDate(item.date),-28));
     const lines=[
-      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//OJ Gutachter//Gebrauchtwagen Check//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:OJ Auto-Erinnerungen',
+      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//OJ Gutachter//Gebrauchtwagen Check//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:'+tr('calendarName'),
       'BEGIN:VEVENT',`UID:${item.key}-${compactDate(item.date)}@oj-gebrauchtwagen-check.local`,`DTSTAMP:${stampedDate(new Date())}`,`DTSTART;VALUE=DATE:${compactDate(item.date)}`,`DTEND;VALUE=DATE:${compactDate(isoDate(shifted(localDate(item.date),1)))}`,
       icsLine(`SUMMARY:${icsEscape(item.title)}`),icsLine(`DESCRIPTION:${icsEscape(item.description)}`),'STATUS:CONFIRMED','TRANSP:TRANSPARENT',
-      'BEGIN:VALARM','ACTION:DISPLAY',icsLine(`DESCRIPTION:${icsEscape('OJ Auto-Erinnerung: '+item.title)}`),icsLine(`TRIGGER;VALUE=DATE-TIME:${compactDate(alarmDate)}T080000`),'END:VALARM','END:VEVENT','END:VCALENDAR'
+      'BEGIN:VALARM','ACTION:DISPLAY',icsLine(`DESCRIPTION:${icsEscape(tr('calendarAlarmPrefix')+item.title)}`),icsLine(`TRIGGER;VALUE=DATE-TIME:${compactDate(alarmDate)}T080000`),'END:VALARM','END:VEVENT','END:VCALENDAR'
     ];
     return lines.join('\r\n')+'\r\n';
   }
   function downloadCalendar(key) {
     const item=reminderData().find(entry=>entry.key===key);
-    if(!item||!item.valid||!item.date){showToast('Bitte zuerst einen gültigen Termin speichern.');return;}
+    if(!item||!item.valid||!item.date){showToast(tr('saveValidDateFirst'));return;}
     const ics=createCalendar(item),utf8Bytes=new TextEncoder().encode(ics),blob=new Blob([new Uint8Array([0xEF,0xBB,0xBF]),utf8Bytes],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
     anchor.href=url;anchor.download=`OJ-${key}-${item.date}.ics`;document.body.appendChild(anchor);anchor.click();anchor.remove();
     window.setTimeout(()=>URL.revokeObjectURL(url),1500);
     window.__lastReminderCalendar={key,content:ics};
-    showToast('Kalenderdatei erstellt. Bitte in Ihrer Kalender-App importieren und prüfen.');
+    showToast(tr('calendarCreated'));
   }
   function numberValue(value) {if(value==='')return null;const number=Number(value);return Number.isSafeInteger(number)&&number>=0&&number<=9999999?number:undefined;}
   function submitReminderForm(form) {
     const data=new FormData(form),vehicleName=cleanText(data.get('vehicleName'),60),licensePlate=cleanText(data.get('licensePlate'),20),huMonth=data.get('huMonth'),tireSeason=data.get('tireSeason'),tireDate=data.get('tireDate'),inspectionDate=data.get('inspectionDate'),currentMileage=numberValue(data.get('currentMileage')),inspectionMileage=numberValue(data.get('inspectionMileage'));
     let error='';
-    if(huMonth&&!MONTH_RE.test(huMonth))error='Bitte TÜV-Monat und Jahr prüfen.';
-    else if(tireSeason&&!['summer','winter'].includes(tireSeason))error='Bitte eine Reifenart wählen.';
-    else if(tireSeason&&!validDate(tireDate))error='Bitte für den Reifenwechsel ein gültiges Datum eingeben.';
-    else if(inspectionDate&&!validDate(inspectionDate))error='Bitte das Inspektionsdatum prüfen.';
-    else if([currentMileage,inspectionMileage].includes(undefined))error='Kilometerstände nur als ganze Zahl zwischen 0 und 9.999.999 eingeben.';
-    else if(inspectionMileage!==null&&currentMileage===null)error='Bitte zusätzlich den aktuellen Kilometerstand für den km-Countdown eintragen.';
+    if(huMonth&&!MONTH_RE.test(huMonth))error=tr('checkHuMonth');
+    else if(tireSeason&&!['summer','winter'].includes(tireSeason))error=tr('chooseTireType');
+    else if(tireSeason&&!validDate(tireDate))error=tr('validTireDate');
+    else if(inspectionDate&&!validDate(inspectionDate))error=tr('checkServiceDate');
+    else if([currentMileage,inspectionMileage].includes(undefined))error=tr('mileageNumber');
+    else if(inspectionMileage!==null&&currentMileage===null)error=tr('currentMileageRequired');
     if(error){const box=document.getElementById('reminderFormError');box.textContent=error;box.hidden=false;box.focus();return;}
     if(data.get('clearReminders'))reminderState=createReminderState();
     else reminderState={vehicleName,licensePlate,huMonth,tireSeason:tireSeason||'',tireDate:tireSeason?tireDate:'',inspectionDate,currentMileage,inspectionMileage};
-    saveReminders();goTo('reminders');showToast(data.get('clearReminders')?'Die Auto-Erinnerungen wurden gelöscht.':'Die Angaben sind lokal auf diesem Gerät gespeichert.');
+    saveReminders();goTo('reminders');showToast(data.get('clearReminders')?tr('carRemindersDeleted'):tr('detailsSaved'));
   }
   function updateSuggestedTireDate(form,overwrite) {const season=form.elements.tireSeason.value,dateInput=form.elements.tireDate;dateInput.disabled=!season;if(overwrite)dateInput.value=season?suggestedTireDate(season):'';}
   document.addEventListener('submit',event=>{if(event.target.id==='reminderForm'){event.preventDefault();submitReminderForm(event.target);}});
@@ -197,7 +199,7 @@ function saveReminders(){try{localStorage.setItem(REMINDER_KEY,JSON.stringify(re
     if(button){event.preventDefault();downloadCalendar(button.dataset.reminderCalendar);
     }
   });
-  Object.assign(window,{renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createReminderCalendar:createCalendar,reminderData,reminderBlocks});
+  Object.assign(window,{renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks});
 })();
 
 if(typeof window.startOjCheck==='function')window.startOjCheck();
