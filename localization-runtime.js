@@ -15,8 +15,10 @@
     document.documentElement.dir=lang==='ar'?'rtl':'ltr';
     document.querySelector('meta[name="description"]').setAttribute('content',tr('metaDescription'));
     document.title='OJ Gebrauchtwagen-Check – '+tr('testVersion');
-    byId('languageButton').textContent=nativeNames[lang];
+    byId('languageButton').querySelector('.language-long').textContent=nativeNames[lang];
+    byId('languageButton').querySelector('.language-short').textContent=lang.toUpperCase();
     byId('languageButton').setAttribute('aria-label',tr('languageButtonLabel',{language:nativeNames[lang]}));
+    byId('languageButton').setAttribute('title',tr('languageButtonLabel',{language:nativeNames[lang]}));
     byId('footerLanguageButton').textContent=tr('languageLabel')+': '+nativeNames[lang];
     setText('languageTitle','languageDialogTitle');setText('languageDescription','languageDialogDescription');
     setText('closeLanguageDialog','close');
