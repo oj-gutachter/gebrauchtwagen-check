@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#F4F4F6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#17161A" media="(prefers-color-scheme: dark)">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta name="description" content="OJ Gebrauchtwagen-Check – Testversion: Die geführte Checkliste für Ihre nächste Fahrzeugbesichtigung. Kostenlos, ohne Konto und offline nutzbar.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="OJ Autocheck">
+  <title>OJ Gebrauchtwagen-Check – neue Design-Vorschau</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon-48.png" sizes="48x48" type="image/png">
+  <link rel="icon" href="assets/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+  <script src="reminders.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#app">Zum Inhalt springen</a>
+  <header class="app-header">
+    <a class="brand" href="#" aria-label="OJ Gebrauchtwagen-Check – Startseite">
+      <img src="assets/oj-rund.png" alt="OJ Gutachter" width="54" height="54">
+      <span><strong>OJ Gutachter</strong><small>Gebrauchtwagen-Check</small></span>
+      <span class="test-badge">Testversion</span>
+    </a>
+    <button class="icon-button hidden" id="homeButton" type="button" aria-label="Zur Startseite" title="Zur Startseite">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg>
+    </button>
+  </header>
+  <main id="app" tabindex="-1"><p class="noscript"><strong>Testversion.</strong> Bitte aktivieren Sie JavaScript, damit Sie die Checkliste und Erinnerungen nutzen können.</p></main>
+  <footer class="app-footer">
+    <img src="assets/oj-rund.png" alt="" width="38" height="38">
+    <p>OJ Gutachter · Dortmund<br><span>Unabhängig. Verständlich. Auf Ihrer Seite.</span></p>
+    <button type="button" class="footer-link" data-action="privacy">Datenschutz &amp; Hinweise</button>
+  </footer>
+  <nav class="bottom-nav" aria-label="Hauptnavigation">
+    <button type="button" data-action="home" id="navCheck" aria-label="Check – Startseite">
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 4.5V3h6v1.5M9 10l2 2 4-4M9 17h6"/></svg></span><span>Check</span>
+    </button>
+    <button type="button" data-action="reminders" id="navReminders" aria-label="Mein Auto – Erinnerungen">
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18m-12 5 2 2 4-4"/></svg></span><span>Erinnerungen</span>
+    </button>
+    <button type="button" data-action="contact" id="navContact" aria-label="Kontakt zu OJ Gutachter">
+      <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2c0 8.84 7.16 16 16 16a2 2 0 0 0 2-2v-3l-4-1-2 2c-3.3-1.1-5.9-3.7-7-7l2-2Z"/></svg></span><span>Kontakt</span>
+    </button>
+  </nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="resetDialog" aria-labelledby="resetTitle">
+    <div class="dialog-icon" aria-hidden="true">↺</div>
+    <h2 id="resetTitle">Neuen Check starten?</h2>
+    <p>Ihre bisherigen Antworten werden auf diesem Gerät gelöscht.</p>
+    <div class="dialog-actions">
+      <button type="button" class="button button-secondary" data-action="cancel-reset">Antworten behalten</button>
+      <button type="button" class="button button-primary" data-action="confirm-reset">Neu starten</button>
+    </div>
+  </dialog>
+  <noscript><p class="noscript">Bitte aktivieren Sie JavaScript, damit Sie die Checkliste nutzen können.</p></noscript>
+  <script>
+  (()=>{
+    const activeTab=()=>{
+      const route=location.hash;
+      document.getElementById('navCheck').setAttribute('aria-current',['','#check','#auswertung'].includes(route)?'page':'false');
+      document.getElementById('navReminders').setAttribute('aria-current',['#erinnerungen','#erinnerungen-bearbeiten'].includes(route)?'page':'false');
+      document.getElementById('navContact').setAttribute('aria-current',route==='#kontakt'?'page':'false');
+    };
+    document.addEventListener('click',()=>{window.requestAnimationFrame(activeTab);window.setTimeout(activeTab,0);});
+    new MutationObserver(activeTab).observe(document.getElementById('app'),{childList:true});
+    window.addEventListener('popstate',activeTab);window.addEventListener('hashchange',activeTab);activeTab();
+  })();
+  </script>
+</body>
+</html>
