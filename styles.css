@@ -343,3 +343,26 @@ dialog{width:calc(100% - 36px);max-width:410px;padding:28px;border:1px solid var
   .print-end-note{display:none!important}
   .print-findings th:first-child{width:44%}.print-findings th:nth-child(2){width:16%}.print-findings th:nth-child(3){width:40%}
 }
+@media print{
+  /* Überschrift „Prüfpunkte im Einzelnen“ bleibt mit der ersten Gruppe zusammen. */
+  .print-results-start{break-inside:avoid;page-break-inside:avoid}
+  .print-results-start>h2{break-after:avoid;page-break-after:avoid}
+  /* Gruppentitel steht im wiederholten Tabellenkopf und kann so nie allein am Seitenende stehen. */
+  .print-step-group table thead tr.print-step-title th{padding:0;background:#5D0C0D!important;border:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .print-step-group .print-step-title h3{margin:0;padding:1.2mm 2.2mm;background:transparent;color:#fff!important;font-size:8.8pt;font-weight:700;text-align:start}
+}
+@media print{
+  .print-results table{table-layout:fixed}
+  .print-results thead tr.print-step-title th{width:auto!important}
+  .print-results thead tr:last-child th:first-child{width:58%!important}
+  .print-results thead tr:last-child th:nth-child(2){width:17%!important}
+  .print-results thead tr:last-child th:nth-child(3){width:25%!important}
+}
+@media print{
+  .print-results col.col-point{width:58%}.print-results col.col-result{width:17%}.print-results col.col-note{width:25%}
+}
+@media print{
+  .print-step-group{margin-bottom:2.2mm}
+  .print-results td{padding-top:.7mm;padding-bottom:.7mm}
+  .print-results thead tr:last-child th{padding-top:.7mm;padding-bottom:.7mm}
+}
