@@ -129,6 +129,7 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
         ${mileage?`<article class="reminder-card ${mileage.level}" data-reminder-status="${mileage.level}"><div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">km</span><span class="due-badge">${mileage.badge}</span></div><h2>${tr(isElectricReminder()?'serviceElectricByMileageTitle':'serviceByMileageTitle')}</h2><p class="reminder-date">${tr('mileageAt',{n:reminderState.inspectionMileage.toLocaleString(locale())})}</p><p class="reminder-countdown">${mileage.text}</p><p class="reminder-explanation">${tr('mileageCardHelp')}</p></article>`:''}
       </section>
       <p class="legal-note"><strong>${tr('important')}</strong> ${tr('calendarLegal')}</p>
+      <aside class="backup-hint-card"><p><strong>${tr('backup.tip')}</strong></p><button class="button button-secondary button-full" type="button" data-action="backup">${tr('backup.open')} ${iconArrow()}</button></aside>
       <aside class="oj-help-reminder"><p class="eyebrow">${tr('independentHelp')}</p><h2>${tr('accidentHelp')}</h2><p>${tr('accidentExpertHelp')}</p><button class="button button-primary button-full" type="button" data-action="contact">${tr('contactOJ')} ${iconArrow()}</button></aside></div>`;
   }
   function reminderData() {
@@ -153,25 +154,48 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
   }
   function compactDate(value) {return value.replace(/-/g,'');}
   function stampedDate(date) {return date.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');}
+  const APP_BRAND='OJ Gebrauchtwagen-Check';
+  function compactTime(value) {return value.replace(':','')+'00';}
+  // RFC 5545: Alarme relativ zum Beginn. Ganztägig: "-PT15H" = Vortag 09:00 Uhr Ortszeit.
+  function defaultAlarms(item) {return item.time?['-P1D','-PT2H']:['-P27DT15H','-PT15H'];}
   function createCalendar(item) {
     if(!item||!validDate(item.date))throw new Error(tr('calendarMissing'));
-    const alarmDate=isoDate(shifted(localDate(item.date),-28));
+    const timed=typeof item.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(item.time);
+    const title=String(item.title).includes(APP_BRAND)?String(item.title):`${item.title} · ${APP_BRAND}`;
+    const description=`${item.description}\n\n${APP_BRAND} · OJ Gutachter`;
+    let start,end;
+    if(timed){
+      const startDate=new Date(...item.date.split('-').map((v,i)=>i===1?Number(v)-1:Number(v)),...item.time.split(':').map(Number));
+      const endDate=new Date(startDate.getTime()+60*60000);
+      start=`DTSTART:${compactDate(item.date)}T${compactTime(item.time)}`;
+      end=`DTEND:${compactDate(isoDate(endDate))}T${String(endDate.getHours()).padStart(2,'0')}${String(endDate.getMinutes()).padStart(2,'0')}00`;
+    }else{
+      start=`DTSTART;VALUE=DATE:${compactDate(item.date)}`;
+      end=`DTEND;VALUE=DATE:${compactDate(isoDate(shifted(localDate(item.date),1)))}`;
+    }
+    const alarms=(item.alarms||defaultAlarms({time:timed?item.time:''})).flatMap(trigger=>['BEGIN:VALARM','ACTION:DISPLAY',icsLine(`DESCRIPTION:${icsEscape(tr('calendarAlarmPrefix')+item.title)}`),`TRIGGER:${trigger}`,'END:VALARM']);
     const lines=[
-      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//OJ Gutachter//Gebrauchtwagen Check//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:'+tr('calendarName'),
-      'BEGIN:VEVENT',`UID:${item.key}-${compactDate(item.date)}@oj-gebrauchtwagen-check.local`,`DTSTAMP:${stampedDate(new Date())}`,`DTSTART;VALUE=DATE:${compactDate(item.date)}`,`DTEND;VALUE=DATE:${compactDate(isoDate(shifted(localDate(item.date),1)))}`,
-      icsLine(`SUMMARY:${icsEscape(item.title)}`),icsLine(`DESCRIPTION:${icsEscape(item.description)}`),'STATUS:CONFIRMED','TRANSP:TRANSPARENT',
-      'BEGIN:VALARM','ACTION:DISPLAY',icsLine(`DESCRIPTION:${icsEscape(tr('calendarAlarmPrefix')+item.title)}`),icsLine(`TRIGGER;VALUE=DATE-TIME:${compactDate(alarmDate)}T080000`),'END:VALARM','END:VEVENT','END:VCALENDAR'
+      'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//OJ Gutachter//Gebrauchtwagen Check//DE','CALSCALE:GREGORIAN','METHOD:PUBLISH',icsLine('X-WR-CALNAME:'+icsEscape(tr('calendarName'))),
+      'BEGIN:VEVENT',`UID:${item.key}-${compactDate(item.date)}${timed?'T'+compactTime(item.time):''}@oj-gebrauchtwagen-check.local`,`DTSTAMP:${stampedDate(new Date())}`,start,end,
+      icsLine(`SUMMARY:${icsEscape(title)}`),icsLine(`DESCRIPTION:${icsEscape(description)}`),'STATUS:CONFIRMED',`TRANSP:${timed?'OPAQUE':'TRANSPARENT'}`,
+      ...alarms,'END:VEVENT','END:VCALENDAR'
     ];
     return lines.join('\r\n')+'\r\n';
+  }
+  // iOS Safari erkennt .ics nur zuverlässig mit "text/calendar" ohne charset-Zusatz und ohne BOM.
+  function saveCalendarFile(item) {
+    const ics=createCalendar(item),blob=new Blob([ics],{type:'text/calendar'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
+    const fileName=`OJ-${item.key}-${item.date}.ics`;
+    anchor.href=url;anchor.download=fileName;anchor.rel='noopener';document.body.appendChild(anchor);anchor.click();anchor.remove();
+    window.setTimeout(()=>URL.revokeObjectURL(url),4000);
+    window.__lastReminderCalendar={key:item.key,content:ics,fileName};
+    showToast(tr('calendarCreated'));
+    return ics;
   }
   function downloadCalendar(key) {
     const item=reminderData().find(entry=>entry.key===key);
     if(!item||!item.valid||!item.date){showToast(tr('saveValidDateFirst'));return;}
-    const ics=createCalendar(item),utf8Bytes=new TextEncoder().encode(ics),blob=new Blob([new Uint8Array([0xEF,0xBB,0xBF]),utf8Bytes],{type:'text/calendar;charset=utf-8'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
-    anchor.href=url;anchor.download=`OJ-${key}-${item.date}.ics`;document.body.appendChild(anchor);anchor.click();anchor.remove();
-    window.setTimeout(()=>URL.revokeObjectURL(url),1500);
-    window.__lastReminderCalendar={key,content:ics};
-    showToast(tr('calendarCreated'));
+    saveCalendarFile(item);
   }
   function numberValue(value) {if(value==='')return null;const number=Number(value);return Number.isSafeInteger(number)&&number>=0&&number<=9999999?number:undefined;}
   function submitReminderForm(form) {
@@ -203,7 +227,7 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
     if(button){event.preventDefault();downloadCalendar(button.dataset.reminderCalendar);
     }
   });
-  Object.assign(window,{syncReminderDrivetrain,renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks});
+  Object.assign(window,{syncReminderDrivetrain,saveCalendarFile,renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks});
 })();
 
 if(typeof window.startOjCheck==='function')window.startOjCheck();

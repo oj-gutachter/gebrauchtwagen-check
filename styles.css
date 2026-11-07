@@ -397,3 +397,32 @@ html[data-theme="auto"] .theme-symbol-auto{display:block}
 /* Unterleiste: lange Beschriftungen (RU/PL „Напоминания“, „Przypomnienia“) dürfen mehr Platz nehmen statt in die Nachbarn zu ragen. */
 .bottom-nav button>span:not(.nav-icon){max-width:100%;text-align:center;overflow-wrap:anywhere;hyphens:auto}
 @media(max-width:420px){.bottom-nav{gap:2px}.bottom-nav button{flex:1 1 auto;min-width:0;padding-left:4px;padding-right:4px}}
+
+/* Besichtigungstermin + Sichern & Wiederherstellen: gleiche Karten, große Schrift, Weinrot/Weiß. */
+.appointment-card,.backup-home-card,.backup-hint-card,.backup-card{margin-top:26px;padding:23px;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);min-width:0}
+.appointment-card .reminder-home-icon,.backup-home-card .reminder-home-icon{flex:0 0 48px;background:var(--wine-soft);color:var(--wine-on-soft)}
+.appointment-card svg,.backup-home-card .reminder-home-icon svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.appointment-head{display:flex;align-items:center;gap:14px;margin-bottom:10px}.appointment-head .eyebrow{margin-bottom:4px;font-weight:650}.appointment-head h2{font-size:26px;line-height:1.3;margin:0}
+.appointment-card>p{font-size:18px;line-height:1.6;color:var(--muted);margin:0 0 16px}
+.appointment-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:18px}
+.appointment-fields label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:19px;font-weight:700;line-height:1.4}.appointment-fields .field-label{font-size:19px;font-weight:700;color:var(--ink)}.appointment-fields .field-label span{font-size:18px;font-weight:500;color:var(--muted)}
+.appointment-fields input{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;min-height:58px}
+.appointment-fields input:disabled{opacity:.7}
+.backup-home-card{overflow:hidden}.backup-home-card .reminder-home-icon{float:inline-end;margin-inline-start:12px}
+.backup-hint-card p{font-size:18px;line-height:1.6;margin:0 0 15px;color:var(--ink)}
+.backup-inline-tip{font-size:18px;line-height:1.6;color:var(--muted);text-align:center;margin:2px 4px 0}
+.backup-inline-tip .inline-link{display:flex;margin:2px auto 0;min-height:48px;padding:0 8px;color:var(--accent);text-decoration:underline;font-weight:700}
+.backup-page{padding:12px 18px 35px}.backup-page>h1{font-size:35px;color:var(--accent);margin-bottom:10px;overflow-wrap:anywhere}
+.backup-tip{display:flex;gap:12px;align-items:flex-start;padding:18px;background:var(--wine-soft);border-radius:16px;font-size:18px;line-height:1.6;color:var(--accent);margin:0}
+:root[data-resolved-theme="dark"] .backup-tip{color:var(--ink)}
+.backup-card{margin-top:20px}.backup-card h2{font-size:24px;line-height:1.35;color:var(--accent);margin:0 0 8px}.backup-card p{font-size:18px;line-height:1.65;color:var(--muted);margin:0 0 16px}
+.backup-card .backup-last{display:inline-block;font-weight:650;color:var(--ink);background:var(--surface-soft);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.backup-includes{margin-top:24px;padding:20px;background:var(--surface-soft);border:1px solid var(--line);border-radius:20px}.backup-includes h2{font-size:22px;line-height:1.4;margin:0 0 10px}.backup-includes ul{margin:0 0 12px;padding-inline-start:22px}.backup-includes li,.backup-includes p{font-size:18px;line-height:1.65;color:var(--muted)}.backup-includes p{margin:0}
+#backupDialog{max-height:calc(100dvh - 32px);overflow:auto}
+#backupDialog .backup-file-date{font-weight:650;color:var(--ink);margin:0 0 10px}
+.backup-plan{margin:0;padding-inline-start:22px}.backup-plan li{font-size:18px;line-height:1.6;color:var(--ink);margin:0 0 10px}.backup-plan .backup-plan-warning{color:var(--danger);font-weight:700}
+.backup-confirm-note{font-size:18px!important;margin:6px 0 0}
+.backup-error-icon{background:var(--danger-bg);color:var(--danger)}
+@media(max-width:360px){.backup-page{padding-left:13px;padding-right:13px}.backup-page>h1{font-size:30px}.appointment-card,.backup-home-card,.backup-hint-card,.backup-card{padding:20px 16px}}
+@media(min-width:760px){.backup-page{padding-left:0;padding-right:0}}
+@media print{.appointment-card,.backup-home-card,.backup-hint-card,#app>.backup-page,#backupDialog,.backup-inline-tip{display:none!important}}

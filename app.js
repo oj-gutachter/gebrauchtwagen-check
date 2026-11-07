@@ -166,7 +166,7 @@ function driveText(step,field){return tr(`${step.textKey}.${field}`);}
 function driveItemText(point,field){return tr(`${point.textKey}.${field}`);}
 function driveLabel(){return state.drivetrain?tr(`drive.${state.drivetrain}`):'';}
 function createState(){
-  return {version:2, drivetrain:null, step:0, answers:{}, notes:{}, vehicle:{}, startedAt:null, completedAt:null};
+  return {version:2, drivetrain:null, step:0, answers:{}, notes:{}, vehicle:{}, appointment:{date:'',time:''}, startedAt:null, completedAt:null};
 }
 function normalizeState(raw){
   const clean=createState();
@@ -183,12 +183,44 @@ function normalizeState(raw){
     clean.vehicle={};
     VEHICLE_FIELDS.forEach(field=>{if(typeof raw.vehicle[field.key]==='string')clean.vehicle[field.key]=raw.vehicle[field.key].slice(0,field.key==='generalNotes'?1000:160);});
   }
+  if(raw.appointment && typeof raw.appointment==='object'){
+    if(isValidIsoDate(raw.appointment.date))clean.appointment.date=raw.appointment.date;
+    if(clean.appointment.date&&typeof raw.appointment.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(raw.appointment.time))clean.appointment.time=raw.appointment.time;
+  }
   if(raw.answers && typeof raw.answers==='object'){
     Object.entries(raw.answers).forEach(([key,value])=>{
       if(validAnswerKeys.has(key)&&sourceStatus[value])clean.answers[key]=value;
     });
   }
   return clean;
+}
+function isValidIsoDate(value){
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const [year,month,day]=value.split('-').map(Number),date=new Date(year,month-1,day);
+  return year>=1900&&year<=2200&&date.getFullYear()===year&&date.getMonth()===month-1&&date.getDate()===day;
+}
+function appointmentValue(){return state.appointment&&typeof state.appointment==='object'?state.appointment:{date:'',time:''};}
+function appointmentCard(){
+  const appointment=appointmentValue();
+  return `<section class="appointment-card" aria-labelledby="appointmentTitle">
+        <div class="appointment-head"><div class="reminder-home-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18M8 14h3v3H8z"/></svg></div><div><p class="eyebrow">${tr('appointment.eyebrow')}</p><h2 id="appointmentTitle">${tr('appointment.title')}</h2></div></div>
+        <p>${tr('appointment.text')}</p>
+        <div class="appointment-fields"><label for="appointmentDate"><span class="field-label">${tr('appointment.date')}</span><input id="appointmentDate" type="date" data-action="appointment-field" data-field="date" value="${escapeHtml(appointment.date||'')}"></label><label for="appointmentTime"><span class="field-label">${tr('appointment.time')} <span>(${tr('optional')})</span></span><input id="appointmentTime" type="time" data-action="appointment-field" data-field="time" value="${escapeHtml(appointment.time||'')}" ${appointment.date?'':'disabled'}></label></div>
+        <button class="button button-secondary button-full calendar-download" type="button" data-action="appointment-calendar">${tr('appointment.calendarButton')}</button>
+      </section>`;
+}
+function backupHomeCard(){
+  return `<section class="backup-home-card" aria-labelledby="backupHomeTitle">
+        <div class="reminder-home-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v11m-4-4 4 4 4-4"/><path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3"/></svg></div>
+        <div class="reminder-home-copy"><p class="eyebrow">${tr('backup.homeEyebrow')}</p><h2 id="backupHomeTitle">${tr('backup.title')}</h2><p>${tr('backup.homeText')}</p></div>
+        <button class="button button-secondary button-full" type="button" data-action="backup">${tr('backup.open')} ${iconArrow()}</button>
+      </section>`;
+}
+function appointmentCalendarItem(){
+  const appointment=appointmentValue();
+  if(!isValidIsoDate(appointment.date))return null;
+  const car=vehicleValue('makeModel');
+  return {key:'besichtigung',date:appointment.date,time:appointment.time||'',title:car?`${tr('appointment.eventTitle')}: ${car}`:tr('appointment.eventTitle'),description:tr('appointment.description')};
 }
 function load(){
   try{
@@ -223,6 +255,7 @@ function render(){
   else if(route==='reminders') renderReminders();
   else if(route==='reminder-form') renderReminderForm();
   else if(route==='privacy') renderPrivacy();
+  else if(route==='backup'&&typeof renderBackup==='function') renderBackup();
   else renderHome();
 }
 function renderHome(){
@@ -242,11 +275,13 @@ function renderHome(){
       <ol class="steps-preview">
         ${activeSteps().map((step,i)=>`<li><span class="step-num">${String(i+1).padStart(2,'0')}</span>${driveText(step,'shortTitle')}</li>`).join('')}
       </ol>
+      ${appointmentCard()}
       <section class="reminder-home-card">
         <div class="reminder-home-icon" aria-hidden="true">✓</div>
         <div class="reminder-home-copy"><p class="eyebrow">${tr('afterPurchase')}</p><h2>${tr('myCarReminders')}</h2><p>${tr('remindersIntro')}</p></div>
         <button class="button button-secondary button-full" type="button" data-action="reminders">${tr('viewDates')} ${iconArrow()}</button>
       </section>
+      ${backupHomeCard()}
       <aside class="trust-card">
         <div class="trust-card-icon" aria-hidden="true">i</div>
         <div><h2>${tr('orientationTitle')}</h2><p>${tr('orientationText')}</p></div>
@@ -388,6 +423,8 @@ function renderSummary(){
       <div class="summary-actions">
         <a class="button button-primary button-full" href="${contactLink()}" data-action="contact">${tr('requestExpert')} ${iconArrow()}</a>
         <button type="button" class="button button-secondary button-full" data-action="print">${tr('printSummary')}</button>
+        <button type="button" class="button button-secondary button-full" data-action="export-backup">${tr('backup.saveButton')}</button>
+        <p class="backup-inline-tip">${tr('backup.tip')} <button type="button" class="button button-text inline-link" data-action="backup">${tr('backup.open')}</button></p>
         <button type="button" class="button button-text" data-action="start">${tr('editAnswers')}</button>
         <button type="button" class="button button-text" data-action="ask-reset">${tr('newCheck')}</button>
       </div>
@@ -502,10 +539,29 @@ function handleAction(action,element){
     window.print();
   }else if(action==='privacy'){
     goTo('privacy');
+  }else if(action==='backup'){
+    goTo('backup');
+  }else if(action==='export-backup'){
+    if(typeof exportBackup==='function')exportBackup();
+  }else if(action==='restore-backup'){
+    if(typeof pickBackupFile==='function')pickBackupFile();
+  }else if(action==='appointment-field'){
+    const appointment={...appointmentValue()};
+    const field=element.dataset.field;
+    if(field==='date'){appointment.date=isValidIsoDate(element.value)?element.value:'';if(!appointment.date)appointment.time='';}
+    else if(field==='time'){appointment.time=/^([01]\d|2[0-3]):[0-5]\d$/.test(element.value)&&appointment.date?element.value:'';}
+    else return;
+    state.appointment=appointment;save();
+    const timeInput=document.getElementById('appointmentTime');
+    if(timeInput){timeInput.disabled=!appointment.date;if(!appointment.date)timeInput.value='';}
+  }else if(action==='appointment-calendar'){
+    const item=appointmentCalendarItem();
+    if(!item){showToast(tr('appointment.missingDate'));document.getElementById('appointmentDate')?.focus();return;}
+    if(typeof saveCalendarFile==='function')saveCalendarFile(item);
   }else if(action==='back-summary'){
     goTo(contactOrigin);
   }else if(action==='back'){
-    goTo(previousRoute==='privacy'?'home':previousRoute);
+    goTo(['privacy','backup'].includes(previousRoute)?'home':previousRoute);
   }
 }
 function normalizedRoute(hash){
@@ -515,20 +571,27 @@ function normalizedRoute(hash){
   if(hash==='#erinnerungen')return 'reminders';
   if(hash==='#erinnerungen-bearbeiten')return 'reminder-form';
   if(hash==='#hinweise')return 'privacy';
+  if(hash==='#sicherung')return 'backup';
   return 'home';
 }
 document.addEventListener('click',event=>{
   const element=event.target.closest('[data-action]');
+  // Eingabefelder reagieren über input/change; ein Klick darf z. B. den Datumswähler nicht blockieren.
+  if(element&&['INPUT','TEXTAREA','SELECT'].includes(element.tagName))return;
   if(element){event.preventDefault();handleAction(element.dataset.action,element);}
 });
 document.addEventListener('input',event=>{
   const element=event.target.closest('[data-action="vehicle-field"],[data-action="vehicle-notes"],[data-action="point-note"]');
   if(element)handleAction(element.dataset.action,element);
 });
+document.addEventListener('change',event=>{
+  const element=event.target.closest('[data-action="appointment-field"]');
+  if(element)handleAction('appointment-field',element);
+});
 document.querySelector('.brand').addEventListener('click',event=>{event.preventDefault();goTo('home');});
 document.getElementById('homeButton').addEventListener('click',()=>goTo('home'));
 function goTo(next){
-  const hashes={home:'',check:'check',summary:'auswertung',contact:'kontakt',reminders:'erinnerungen','reminder-form':'erinnerungen-bearbeiten',privacy:'hinweise'};
+  const hashes={home:'',check:'check',summary:'auswertung',contact:'kontakt',reminders:'erinnerungen','reminder-form':'erinnerungen-bearbeiten',privacy:'hinweise',backup:'sicherung'};
   const hash=hashes[next]||'';
   const url=hash?'#'+hash:location.pathname+location.search;
   if(location.hash!==hash) history.pushState({route:next},'',url);

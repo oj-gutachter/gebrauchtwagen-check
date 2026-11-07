@@ -33,6 +33,7 @@
     byId('homeButton').setAttribute('title',tr('homeLabel'));
     byId('footerClaim').textContent=tr('footerClaim');
     byId('footerPrivacyButton').textContent=tr('privacyLink');
+    byId('footerBackupButton').textContent=tr('backup.link');
     const noScript=byId('noScript');if(noScript)noScript.textContent=tr('noScript');
     byId('navCheckLabel').textContent=tr('navCheck');
     setAria('navCheck','navCheckLabel');setAria('navReminders','myCarReminders');

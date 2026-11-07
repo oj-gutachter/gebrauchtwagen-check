@@ -43,6 +43,7 @@
   <script src="localization-runtime.js" defer></script>
   <script src="app.js" defer></script>
   <script src="theme.js" defer></script>
+  <script src="backup.js" defer></script>
   <script src="reminders.js" defer></script>
 </head>
 <body>
@@ -72,6 +73,7 @@
     <div class="footer-settings">
       <button type="button" class="footer-link" id="footerLanguageButton">Sprache: Deutsch</button>
       <button type="button" class="footer-link" id="footerThemeButton">Aussehen: Automatisch</button>
+      <button type="button" class="footer-link" id="footerBackupButton" data-action="backup">Sichern &amp; Wiederherstellen</button>
       <button type="button" class="footer-link" id="footerPrivacyButton" data-action="privacy">Datenschutz &amp; Hinweise</button>
     </div>
   </footer>
@@ -123,6 +125,7 @@
       <button type="button" class="button button-primary" id="confirmReset" data-action="confirm-reset">Neu starten</button>
     </div>
   </dialog>
+  <dialog id="backupDialog" aria-labelledby="backupDialogTitle" aria-describedby="backupDialogText"></dialog>
   <noscript><p class="noscript" id="fallbackNoScript">Bitte aktivieren Sie JavaScript, damit Sie die Checkliste nutzen können.</p></noscript>
   <script>
   (()=>{

@@ -1,6 +1,6 @@
 'use strict';
-const CACHE='oj-gebrauchtwagen-check-v17';
-const ASSETS=['./','./index.html','./styles.css','./i18n-base.js','./translations.js','./localization-runtime.js','./app.js','./reminders.js','./theme.js','./manifest.webmanifest','./robots.txt','./assets/oj-rund.png','./assets/icon-48.png','./assets/icon-180.png','./assets/icon-192.png','./assets/icon-512.png'];
+const CACHE='oj-gebrauchtwagen-check-v18';
+const ASSETS=['./','./index.html','./styles.css','./i18n-base.js','./translations.js','./localization-runtime.js','./app.js','./backup.js','./reminders.js','./theme.js','./manifest.webmanifest','./robots.txt','./assets/oj-rund.png','./assets/icon-48.png','./assets/icon-180.png','./assets/icon-192.png','./assets/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
