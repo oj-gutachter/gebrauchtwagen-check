@@ -203,10 +203,10 @@ function appointmentValue(){return state.appointment&&typeof state.appointment==
 function appointmentCard(){
   const appointment=appointmentValue();
   return `<section class="appointment-card" aria-labelledby="appointmentTitle">
-        <div class="appointment-head"><div class="reminder-home-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18M8 14h3v3H8z"/></svg></div><div><p class="eyebrow">${tr('appointment.eyebrow')}</p><h2 id="appointmentTitle">${tr('appointment.title')}</h2></div></div>
+        <div class="appointment-head"><div class="reminder-home-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18M8 14h3v3H8z"/></svg></div><p class="eyebrow">${tr('appointment.eyebrow')}</p><h2 id="appointmentTitle">${tr('appointment.title')}</h2></div>
         <p>${tr('appointment.text')}</p>
         <div class="appointment-fields"><label for="appointmentDate"><span class="field-label">${tr('appointment.date')}</span><input id="appointmentDate" type="date" data-action="appointment-field" data-field="date" value="${escapeHtml(appointment.date||'')}"></label><label for="appointmentTime"><span class="field-label">${tr('appointment.time')} <span>(${tr('optional')})</span></span><input id="appointmentTime" type="time" data-action="appointment-field" data-field="time" value="${escapeHtml(appointment.time||'')}" ${appointment.date?'':'disabled'}></label></div>
-        <button class="button button-secondary button-full calendar-download" type="button" data-action="appointment-calendar">${tr('appointment.calendarButton')}</button>
+        ${typeof calendarControlsHtml==='function'?calendarControlsHtml('besichtigung','appointment'):`<button class="button button-secondary button-full calendar-download" type="button" data-action="appointment-calendar">${tr('appointment.calendarButton')}</button>`}
       </section>`;
 }
 function backupHomeCard(){
@@ -257,6 +257,7 @@ function render(){
   else if(route==='privacy') renderPrivacy();
   else if(route==='backup'&&typeof renderBackup==='function') renderBackup();
   else renderHome();
+  if(window.__pendingHandoffCalendar&&typeof showCalendarHandoffBanner==='function')showCalendarHandoffBanner(window.__pendingHandoffCalendar);
 }
 function renderHome(){
   const answered=Object.keys(state.answers).length;
@@ -555,9 +556,7 @@ function handleAction(action,element){
     const timeInput=document.getElementById('appointmentTime');
     if(timeInput){timeInput.disabled=!appointment.date;if(!appointment.date)timeInput.value='';}
   }else if(action==='appointment-calendar'){
-    const item=appointmentCalendarItem();
-    if(!item){showToast(tr('appointment.missingDate'));document.getElementById('appointmentDate')?.focus();return;}
-    if(typeof saveCalendarFile==='function')saveCalendarFile(item);
+    if(typeof openCalendar==='function')openCalendar('besichtigung',element&&element.dataset.calendarMode==='file'?'file':'auto');
   }else if(action==='back-summary'){
     goTo(contactOrigin);
   }else if(action==='back'){
@@ -599,6 +598,15 @@ function goTo(next){
 }
 window.addEventListener('popstate',()=>setRoute(normalizedRoute(location.hash)));
 window.addEventListener('hashchange',()=>{
+  const raw=location.hash.replace(/^#/,'');
+  if(raw.startsWith('ojcal.')&&typeof consumeCalendarFragment==='function'){
+    const handoff=consumeCalendarFragment();
+    const next=normalizedRoute(location.hash);
+    if(next!==route)setRoute(next);
+    else if(handoff)render();
+    if(handoff&&typeof openCalendarFromHandoff==='function')openCalendarFromHandoff(handoff);
+    return;
+  }
   const next=normalizedRoute(location.hash);
   if(next!==route) setRoute(next);
 });
@@ -620,9 +628,11 @@ window.startOjCheck=()=>{
   load();
   if(typeof loadReminders==='function')loadReminders();
   if(state.drivetrain&&typeof syncReminderDrivetrain==='function')syncReminderDrivetrain(state.drivetrain);
+  const handoff=typeof consumeCalendarFragment==='function'?consumeCalendarFragment():null;
   route=normalizedRoute(location.hash);
   render();
   preparePrintReport();
+  if(handoff&&typeof openCalendarFromHandoff==='function')openCalendarFromHandoff(handoff);
 };
 if(typeof loadReminders==='function')window.startOjCheck();
 if('serviceWorker' in navigator && (location.protocol==='https:'||location.hostname==='127.0.0.1'||location.hostname==='localhost')){

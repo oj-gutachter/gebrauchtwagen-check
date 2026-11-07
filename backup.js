@@ -8,7 +8,7 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
   let pendingRestore=null;
   const isPlainObject=value=>!!value&&typeof value==='object'&&!Array.isArray(value);
   const localIso=(date=new Date())=>[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
-  function backupFileName(date=new Date()){return `OJ-Gebrauchtwagen-Check-Sicherung-${localIso(date)}.json`;}
+  function backupFileName(date=new Date()){return `OJ-Gebrauchtwagen-Check-Sicherung-${localIso(date)}.ojsicherung`;}
   function checkHasContent(check){
     if(!check)return false;
     return !!check.drivetrain||Object.keys(check.answers||{}).length>0||Object.keys(check.notes||{}).length>0||Object.values(check.vehicle||{}).some(value=>typeof value==='string'&&value.trim())||!!(check.appointment&&check.appointment.date);
@@ -36,18 +36,20 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
     const backup=buildBackup();
     if(!checkHasContent(backup.data.check)&&!remindersHaveContent(backup.data.reminders)){showToast(tr('backup.nothingToSave'));return null;}
     const content=JSON.stringify(backup,null,2)+'\n',name=backupFileName();
-    window.__lastBackup={name,content};
-    let file=null;
-    try{file=new File([content],name,{type:'application/json'});}catch(_){}
-    // Web Share API mit Dateien (iPhone: Mail, WhatsApp, „In Dateien sichern“/iCloud). Sonst normaler Download.
-    if(file&&navigator.canShare&&navigator.share){
-      let shareable=false;try{shareable=navigator.canShare({files:[file]});}catch(_){}
-      if(shareable){
-        try{await navigator.share({files:[file],title:tr('backup.shareTitle'),text:tr('backup.shareText')});rememberBackup();showToast(tr('backup.shared'));refreshLastBackup();return 'shared';}
-        catch(error){if(error&&error.name==='AbortError')return 'aborted';}
+    // Nicht application/json: Auf dem iPhone beansprucht sonst eine andere App die Datei.
+    // octet-stream behält die Endung .ojsicherung. text/plain nur, falls Teilen den Typ ablehnt.
+    window.__lastBackup={name,content,type:'application/octet-stream'};
+    if(navigator.canShare&&navigator.share){
+      for(const type of ['application/octet-stream','text/plain']){
+        let file=null;
+        try{file=new File([content],name,{type});}catch(_){continue;}
+        let shareable=false;try{shareable=navigator.canShare({files:[file]});}catch(_){}
+        if(!shareable)continue;
+        try{await navigator.share({files:[file],title:tr('backup.shareTitle'),text:tr('backup.shareText')});window.__lastBackup.type=type;rememberBackup();showToast(tr('backup.shared'));refreshLastBackup();return 'shared';}
+        catch(error){if(error&&error.name==='AbortError')return 'aborted';break;}
       }
     }
-    try{downloadFile(content,name,'application/json');rememberBackup();showToast(tr('backup.downloaded',{name}));refreshLastBackup();return 'downloaded';}
+    try{downloadFile(content,name,'application/octet-stream');rememberBackup();showToast(tr('backup.downloaded',{name}));refreshLastBackup();return 'downloaded';}
     catch(_){showToast(tr('backup.failed'));return null;}
   }
   function refreshLastBackup(){const node=document.getElementById('backupLastInfo');if(node)node.textContent=lastBackupText();}
@@ -141,8 +143,9 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
     let input=document.getElementById('backupFileInput');
     if(!input){
       input=document.createElement('input');input.type='file';input.id='backupFileInput';input.hidden=true;
-      // iPhone: .json und Text zulassen, sonst sind Dateien aus Mail/WhatsApp mitunter ausgegraut.
-      input.accept='.json,application/json,text/plain';
+      // iOS blendet unbekannte Endungen aus, wenn accept zu eng ist. */* lässt .ojsicherung wählbar;
+      // alte .json-Sicherungen bleiben ebenfalls wählbar. Geprüft wird danach nur der Inhalt.
+      input.accept='.ojsicherung,.json,application/octet-stream,application/json,text/plain,*/*';
       input.addEventListener('change',()=>{
         const file=input.files&&input.files[0];input.value='';
         if(!file)return;
@@ -164,7 +167,7 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
       <p class="backup-tip"><span aria-hidden="true">✦</span> <strong>${tr('backup.tip')}</strong></p>
       <article class="backup-card"><h2>${tr('backup.saveHeading')}</h2><p>${tr('backup.saveText')}</p><p class="backup-last" id="backupLastInfo">${lastBackupText()}</p>
         <button type="button" class="button button-primary button-full" data-action="export-backup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m-4-4 4 4 4-4"/><path d="M5 15v3a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-3"/></svg> ${tr('backup.saveButton')}</button></article>
-      <article class="backup-card"><h2>${tr('backup.restoreHeading')}</h2><p>${tr('backup.restoreText')}</p>
+      <article class="backup-card"><h2>${tr('backup.restoreHeading')}</h2><p class="backup-restore-hint">${tr('backup.restoreHint')}</p><p>${tr('backup.restoreText')}</p>
         <button type="button" class="button button-secondary button-full" data-action="restore-backup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10m-4 4 4-4 4 4"/><path d="M5 9V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3"/></svg> ${tr('backup.restoreButton')}</button></article>
       <section class="backup-includes"><h2>${tr('backup.includesTitle')}</h2><ul><li>${tr('backup.includesAnswers')}</li><li>${tr('backup.includesVehicle')}</li><li>${tr('backup.includesReminders')}</li></ul><p>${tr('backup.privacyNote')}</p></section>
     </section>`;
@@ -180,5 +183,6 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
     const box=dialog();
     if(box)box.addEventListener('click',event=>{if(event.target===event.currentTarget){pendingRestore=null;event.currentTarget.close();}});
   });
+  fileInput();
   Object.assign(window,{renderBackup,exportBackup,pickBackupFile,validateBackupText,planRestore,restoreFromText,buildBackup,backupFileName});
 })();
