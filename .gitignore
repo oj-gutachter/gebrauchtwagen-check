@@ -5,3 +5,4 @@ screenshots/
 node_modules/
 www/
 .capacitor/
+native/oj-device/android/build/
