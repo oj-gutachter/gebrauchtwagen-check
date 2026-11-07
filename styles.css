@@ -432,3 +432,28 @@ html[data-theme="auto"] .theme-symbol-auto{display:block}
 @media(max-width:360px){.backup-page{padding-left:13px;padding-right:13px}.backup-page>h1{font-size:30px}.appointment-card,.backup-home-card,.backup-hint-card,.backup-card{padding:20px 16px}}
 @media(min-width:760px){.backup-page{padding-left:0;padding-right:0}}
 @media print{.appointment-card,.backup-home-card,.backup-hint-card,#app>.backup-page,#backupDialog,.backup-inline-tip{display:none!important}}
+.battery-fields,.battery-record{margin:12px 0 4px;padding:14px 14px 16px;background:var(--surface-soft);border:1px solid var(--line);border-radius:16px;min-width:0}
+.battery-fields legend,.battery-record h2,.battery-tests-title{font-size:20px;line-height:1.35;font-weight:750;color:var(--ink)}
+.battery-ask,.battery-tests p,.battery-facts{font-size:17px;line-height:1.55;color:var(--muted)}
+.battery-fields label{display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:18px;font-weight:700;color:var(--ink)}
+.battery-fields input,.battery-fields textarea{font:inherit;font-weight:500;min-height:52px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface);color:var(--ink);width:100%}
+.battery-fields textarea{min-height:96px;resize:vertical}
+.battery-date-hint{font-size:17px;line-height:1.5;color:var(--amber);font-weight:650;margin:10px 0 0}
+.battery-tests{display:grid;gap:8px;margin-top:14px}
+.battery-tests .button{margin-top:0}
+.battery-facts{display:grid;gap:8px;margin:8px 0 0}
+.battery-facts div{display:grid;gap:2px}
+.battery-facts dt{font-weight:750;color:var(--ink)}
+.battery-facts dd{margin:0}
+.expert-hint{margin:8px 0 18px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:18px}
+.expert-hint-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.expert-hint h2{font-size:22px;margin:4px 0 8px}
+.expert-hint p,.expert-hours,.expert-office{font-size:17px;line-height:1.55}
+.expert-actions{display:grid;gap:8px;margin-top:12px}
+.expert-dismiss{min-height:48px;padding-inline:8px}
+.expert-distance,.expert-denied{margin-top:12px}
+.expert-denied h3{font-size:20px;margin:0 0 8px}
+.print-battery{margin:6mm 0}
+.print-battery h2{font-size:12pt}
+.print-battery p,.print-battery dd,.print-battery dt{font-size:9pt;line-height:1.4}
+@media print{.battery-record,.expert-hint{display:none!important}}

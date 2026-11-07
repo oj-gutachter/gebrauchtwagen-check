@@ -168,6 +168,41 @@ function driveLabel(){return state.drivetrain?tr(`drive.${state.drivetrain}`):''
 function createState(){
   return {version:2, drivetrain:null, step:0, answers:{}, notes:{}, vehicle:{}, appointment:{date:'',time:''}, startedAt:null, completedAt:null};
 }
+function isNativeShell(){
+  try{return !!(window.OjNativeCalendar&&window.OjNativeCalendar.isNative===true);}catch(error){return false;}
+}
+function emptyBattery(){return {soh:null,certificateDate:'',warrantyText:'',warrantyKm:'',warrantyYears:'',warrantyConditions:''};}
+function normalizeBattery(raw){
+  const out=emptyBattery();
+  if(!raw||typeof raw!=='object')return out;
+  let soh=raw.soh;
+  if(typeof soh==='string'&&soh.trim()!=='')soh=Number(String(soh).replace(',','.'));
+  if(typeof soh==='number'&&Number.isFinite(soh)&&soh>=0&&soh<=100)out.soh=Math.round(soh*10)/10;
+  if(typeof raw.certificateDate==='string'&&isValidIsoDate(raw.certificateDate))out.certificateDate=raw.certificateDate;
+  const limits={warrantyText:80,warrantyKm:40,warrantyYears:40,warrantyConditions:500};
+  Object.keys(limits).forEach(key=>{if(typeof raw[key]==='string')out[key]=raw[key].trim().slice(0,limits[key]);});
+  return out;
+}
+function mergeBatteryRecord(current,incoming){
+  if(!isNativeShell())return null;
+  const present=normalizeBattery(current),saved=normalizeBattery(incoming),out=Object.assign({},saved,present);
+  if(present.soh===null)out.soh=saved.soh;
+  if(!present.certificateDate)out.certificateDate=saved.certificateDate;
+  ['warrantyText','warrantyKm','warrantyYears','warrantyConditions'].forEach(key=>{if(!present[key])out[key]=saved[key];});
+  return out;
+}
+function batteryFieldsHtml(point){
+  if(!isNativeShell()||typeof window.OjNativeCalendar.batteryFieldsHtml!=='function')return '';
+  return window.OjNativeCalendar.batteryFieldsHtml(point)||'';
+}
+function batterySummaryHtml(){
+  if(!isNativeShell()||typeof window.OjNativeCalendar.batterySummaryHtml!=='function')return '';
+  return window.OjNativeCalendar.batterySummaryHtml()||'';
+}
+function batteryPrintHtml(){
+  if(!isNativeShell()||typeof window.OjNativeCalendar.batteryPrintHtml!=='function')return '';
+  return window.OjNativeCalendar.batteryPrintHtml()||'';
+}
 function normalizeState(raw){
   const clean=createState();
   const validAnswerKeys=new Set(['petrol','hybrid','electric'].flatMap(drive=>stepsFor(drive).flatMap(step=>step.itemIndexes.map(itemIndex=>`${step.id}-${itemIndex}`))));
@@ -192,6 +227,7 @@ function normalizeState(raw){
       if(validAnswerKeys.has(key)&&sourceStatus[value])clean.answers[key]=value;
     });
   }
+  if(isNativeShell())clean.battery=normalizeBattery(raw.battery);
   return clean;
 }
 function isValidIsoDate(value){
@@ -325,7 +361,7 @@ function renderChecklist(){
           const value=state.answers[point.key]||'';
           return `<article class="check-item" data-status="${value}" data-point-key="${point.key}">
             <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${driveItemText(point,'title')}</h2></div>
-            <p class="check-tip">${driveItemText(point,'hint')}</p>
+            <p class="check-tip">${driveItemText(point,'hint')}</p>${batteryFieldsHtml(point)}
             <div class="check-note"><label for="note-${point.key}">${tr('printNoteColumn')} <span>(${tr('optional')})</span><input id="note-${point.key}" type="text" data-action="point-note" data-key="${point.key}" value="${escapeHtml(noteValue(point.key))}" maxlength="500" placeholder="${tr('printNotePlaceholder')}" autocomplete="off"></label></div>
             <div class="choice-group" role="group" aria-label="${tr('ratingLabel',{title:driveItemText(point,'title')})}">
               ${Object.entries(sourceStatus).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${point.key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${tr('status.'+status)}</button>`).join('')}
@@ -393,6 +429,7 @@ function printReport(c,s,recommendation){
     <section class="print-findings"><h2>${tr('printFindingsTitle')}</h2>${flagged.length?`<table><thead><tr><th>${tr('printPointColumn')}</th><th>${tr('printResultColumn')}</th><th>${tr('printNoteColumn')}</th></tr></thead><tbody>${flagged.map(point=>`<tr><td><small>${point.stepIndex+1}.${point.itemIndexInStep+1}</small> ${escapeHtml(driveItemText(point,'title'))}</td><td class="print-finding-status ${state.answers[point.key]}">${sourceStatus[state.answers[point.key]].icon} ${tr('status.'+state.answers[point.key])}</td><td data-print-note="${point.key}">${escapeHtml(noteValue(point.key))||tr('printNoNote')}</td></tr>`).join('')}</tbody></table>`:`<p class="print-no-findings">✓ ${tr('noFindings')}</p>`}</section>
     <section class="print-recommendation"><h2>${tr('printContactTitle')}</h2><p>${tr(recommendation+'Text')}</p><p class="print-recommendation-contact"><strong>OJ Gutachter · Larry O. Johnson</strong><br>${CONTACT.address} · Tel. ${CONTACT.landlineDisplay} / ${CONTACT.phoneDisplay}<br>${CONTACT.email} · www.oj-gutachter.de</p></section>
     <section class="print-results">${activeSteps().map((step,stepIndex)=>`${stepIndex===0?`<div class="print-results-start"><h2>${tr('printResultsTitle')}</h2>`:''}<section class="print-step-group"><table><colgroup><col class="col-point"><col class="col-result"><col class="col-note"></colgroup><thead><tr class="print-step-title"><th colspan="3"><h3>${stepIndex+1}. ${driveText(step,'title')}</h3></th></tr><tr><th>${tr('printPointColumn')}</th><th>${tr('printResultColumn')}</th><th>${tr('printNoteColumn')}</th></tr></thead><tbody>${step.itemIndexes.map((itemIndex,index)=>printPointRow({key:`${step.id}-${itemIndex}`,textKey:`${step.textKey}.items.${itemIndex}`},index)).join('')}</tbody></table></section>${stepIndex===0?'</div>':''}`).join('')}</section>
+    ${batteryPrintHtml()}
     <footer class="print-end-note"><strong>${tr('important')}</strong> ${tr('summaryLegal')}<br><span>${tr('printCreatedWith')} · ${printDate()}</span></footer>
   </article>`;
 }
@@ -415,6 +452,7 @@ function renderSummary(){
       ${completed<c.total?`<p class="local-notice">${tr('ratedOf',{done:completed,total:c.total})} <button type="button" class="button button-text" data-action="start">${tr('continueCheck')}</button></p>`:''}
     </section>
     <div class="summary-body screen-summary">
+      ${batterySummaryHtml()}
       <aside class="recommendation"><div class="recommendation-icon" aria-hidden="true">i</div><div><h2>${tr(recommendation+'Title')}</h2><p>${tr(recommendation+'Text')}</p></div></aside>
       <h2 class="findings-title">${tr('notesTitle')}</h2><p class="findings-sub">${tr('notesIntro')}</p>
       ${findings().join('')||`<div class="all-ok">✓ ${tr('noFindings')}</div>`}

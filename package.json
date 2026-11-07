@@ -1,0 +1,22 @@
+{
+  "name": "oj-gebrauchtwagen-check",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Native Android and iOS shell for OJ Gebrauchtwagen-Check. The static web app remains the GitHub Pages version.",
+  "scripts": {
+    "web:copy": "node scripts/copy-web.mjs",
+    "cap:sync": "node scripts/copy-web.mjs && cap sync",
+    "android:debug": "node scripts/copy-web.mjs && cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/calendar": "^1.0.1",
+    "@capacitor/cli": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "oj-device": "file:native/oj-device"
+  }
+}

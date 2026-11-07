@@ -1,0 +1,14 @@
+{
+  "name": "oj-device",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App settings, external links and coarse location for the OJ Gebrauchtwagen-Check native shell.",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  }
+}
