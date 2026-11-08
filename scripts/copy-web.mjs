@@ -14,6 +14,8 @@ const files = [
   'theme.js',
   'backup.js',
   'native-shell.js',
+  'paywall-config.js',
+  'paywall.js',
   'reminders.js',
   'manifest.webmanifest',
   'robots.txt',

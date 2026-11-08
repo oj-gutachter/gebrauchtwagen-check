@@ -17,6 +17,7 @@
     "@capacitor/ios": "^8.6.0",
     "@capacitor/share": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.2",
+    "cordova-plugin-purchase": "^13.20.0",
     "oj-device": "file:native/oj-device"
   }
 }

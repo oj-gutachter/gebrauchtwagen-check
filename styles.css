@@ -450,6 +450,10 @@ html[data-theme="auto"] .theme-symbol-auto{display:block}
 .expert-hint h2{font-size:22px;margin:4px 0 8px}
 .expert-hint p,.expert-hours,.expert-office{font-size:17px;line-height:1.55}
 .expert-actions{display:grid;gap:8px;margin-top:12px}
+.paywall-card{margin:18px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:18px}
+.paywall-card h2{font-size:22px;margin:4px 0 8px}
+.paywall-card p{font-size:17px;line-height:1.55}
+.paywall-card .button{margin-top:8px}
 .expert-call{flex-direction:column;gap:2px;white-space:normal;line-height:1.3;min-height:72px;padding-block:12px}
 .expert-call-label{display:block;text-align:center;text-wrap:balance}
 .expert-call-number{display:block;white-space:nowrap;direction:ltr;unicode-bidi:isolate;text-align:center}
