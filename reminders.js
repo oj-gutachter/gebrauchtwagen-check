@@ -274,7 +274,7 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
   }
   function expertHintSlot(){
-    if(!(window.OjNativeCalendar&&window.OjNativeCalendar.isNative===true&&typeof window.OjNativeCalendar.expertHintHtml==='function'))return '';
+    if(!(window.OjNativeCalendar&&typeof window.OjNativeCalendar.expertHintHtml==='function'))return '';
     return window.OjNativeCalendar.expertHintHtml()||'';
   }
   function calendarControlsHtml(key,variant){

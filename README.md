@@ -116,7 +116,7 @@ Aktualisierter technischer Stand (Dokumentation und Live-Prüfung) ist nach dem 
 
 ## Native Hülle (nicht veröffentlicht)
 
-Android- und iOS-Projekt liegen unter `android/` und `ios/`. Sie werden nicht in den App Store oder bei Google Play hochgeladen. Die statische Web-App auf GitHub Pages bleibt im Browser beim bisherigen Weg: `.ics`-Datei oder Google-Kalender. Der native Kalender, der Hinweis auf das Büro und die zusätzlichen Batteriefelder laufen nur, wenn Capacitor `isNativePlatform()` meldet.
+Android- und iOS-Projekt liegen unter `android/` und `ios/`. Sie werden nicht in den App Store oder bei Google Play hochgeladen. Die statische Web-App auf GitHub Pages bleibt im Browser beim bisherigen Weg: `.ics`-Datei oder Google-Kalender. Der native Kalender und die zusätzlichen Batteriefelder laufen nur, wenn Capacitor `isNativePlatform()` meldet. „Auswertung drucken“ öffnet dort den System-Druckdialog (auf dem iPhone mit der Möglichkeit, das Protokoll zu teilen, falls der Dialog nicht angezeigt werden kann). Im Browser bleibt es bei `window.print()`. Der Hinweis auf das Büro mit der Entfernung steht bei HU- oder Inspektionserinnerungen auch im Browser.
 
 Vorgeschlagene App-ID, vom Inhaber noch änderbar: `de.ojgutachter.gebrauchtwagencheck`. Anzeigename: OJ Gebrauchtwagen-Check. Startsymbol und Startbild verwenden das Weinrot-Monogramm aus `resources/icon-source.png`.
 
@@ -130,7 +130,7 @@ Die Debug-APK liegt danach unter `android/app/build/outputs/apk/debug/`. iOS bra
 
 Im nativen Kalender schreibt „In Kalender eintragen“ den Termin einschließlich der bisherigen Erinnerungen direkt in den Gerätekalender. Die Systemabfrage erscheint erst beim ersten Tippen auf einen solchen Knopf. Bei Ablehnung oder Sperre gibt es einen Hinweis in der aktuellen Sprache, einen Weg in die Einstellungen und die Kalenderdatei zum Teilen oder Speichern.
 
-Der dezente Hinweis „Unabhängiger Kfz-Sachverständiger in der Nähe“ steht nur bei HU- oder Inspektionserinnerungen, lässt sich ausblenden und bleibt ausgeblendet. Er beschreibt die unabhängige, neutrale Prüfung durch OJ Gutachter vor dem Kauf, bei Mängeln oder nach einem Unfall, mit Gebrauchtwagen-Check, Schadengutachten und Wertgutachten. Büro, Telefon, Website und Öffnungszeiten stammen aus der bestehenden App und von https://www.oj-gutachter.de. Die Entfernung nutzt nur den ungefähren Standort und nur nach Tippen auf „Entfernung anzeigen“. Die Kartensuche nach „Kfz-Sachverständiger“ öffnet die Karten-App, ohne den Standort zu speichern oder zu versenden.
+Der dezente Hinweis „Unabhängiger Kfz-Sachverständiger in der Nähe“ steht bei HU- oder Inspektionserinnerungen, lässt sich ausblenden und bleibt ausgeblendet. Er beschreibt die unabhängige, neutrale Prüfung durch OJ Gutachter vor dem Kauf, bei Mängeln oder nach einem Unfall, mit Gebrauchtwagen-Check, Schadengutachten und Wertgutachten. Büro, Telefon, Website und Öffnungszeiten stammen aus der bestehenden App und von https://www.oj-gutachter.de. Die Entfernung nutzt nur den ungefähren Standort und nur nach Tippen auf „Entfernung anzeigen“. Sie wird in der App angezeigt, nicht gespeichert und nicht weitergegeben.
 
 Bei Hybrid und Elektro ergänzt der bestehende Schritt „Akku & Hochvolt“ beziehungsweise „Hybridantrieb & Batterie“ SoH, Zertifikatsdatum und Garantieangaben. Es gibt keine zusätzlichen Prüfpunkte und keine zweite Liste. Benziner und Diesel sehen das nicht. Die Werte bleiben lokal, erscheinen in Sicherung, Auswertung und Druck und fehlen im Browser.
 

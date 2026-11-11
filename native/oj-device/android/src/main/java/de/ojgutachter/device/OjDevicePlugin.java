@@ -13,6 +13,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.CancellationSignal;
 import android.os.Looper;
+import android.print.PrintManager;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.provider.Settings;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
@@ -32,6 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 )
 public class OjDevicePlugin extends Plugin {
     private static final String ALIAS = "coarseLocation";
+    private WebView printWebView;
 
     @PluginMethod
     public void openSettings(PluginCall call) {
@@ -71,14 +75,12 @@ public class OjDevicePlugin extends Plugin {
 
     @PluginMethod
     public void requestLocation(PluginCall call) {
-        if ("granted".equals(locationState())) {
-            resolveState(call, "granted");
+        String state = locationState();
+        if ("granted".equals(state) || "denied".equals(state)) {
+            resolveState(call, state);
             return;
         }
-        if (!"prompt".equals(locationState())) {
-            resolveState(call, locationState());
-            return;
-        }
+        // "prompt" and "prompt-with-rationale" both still show the system dialog.
         requestPermissionForAlias(ALIAS, call, "locationPermissionCallback");
     }
 
@@ -179,5 +181,55 @@ public class OjDevicePlugin extends Plugin {
     private boolean isAllowed(String url) {
         String lower = url.toLowerCase(Locale.ROOT);
         return lower.startsWith("https://") || lower.startsWith("http://") || lower.startsWith("tel:") || lower.startsWith("geo:") || lower.startsWith("maps:");
+    }
+
+    @PluginMethod
+    public void printHtml(PluginCall call) {
+        String html = call.getString("html");
+        String jobName = call.getString("jobName");
+        if (jobName == null || jobName.trim().isEmpty()) jobName = "OJ Gebrauchtwagen-Check";
+        if (html == null || html.trim().isEmpty()) {
+            call.reject("Nichts zu drucken.");
+            return;
+        }
+        Activity activity = getActivity();
+        if (activity == null) {
+            call.reject("Druck nicht verfügbar.");
+            return;
+        }
+        final String job = jobName.length() > 80 ? jobName.substring(0, 80) : jobName;
+        final String document = html;
+        activity.runOnUiThread(() -> startPrint(activity, call, document, job));
+    }
+
+    private void startPrint(Activity activity, PluginCall call, String html, String job) {
+        if (printWebView != null) {
+            printWebView.destroy();
+            printWebView = null;
+        }
+        WebView web = new WebView(activity);
+        web.setBackgroundColor(0xFFFFFFFF);
+        web.getSettings().setJavaScriptEnabled(false);
+        web.getSettings().setLoadsImagesAutomatically(true);
+        printWebView = web;
+        web.setWebViewClient(new WebViewClient() {
+            private boolean started;
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                if (started || view != printWebView) return;
+                started = true;
+                PrintManager manager = (PrintManager) activity.getSystemService(Context.PRINT_SERVICE);
+                if (manager == null) {
+                    call.reject("Druck nicht verfügbar.");
+                    return;
+                }
+                manager.print(job, view.createPrintDocumentAdapter(job), null);
+                call.resolve();
+            }
+        });
+        String base = null;
+        if (getBridge() != null && getBridge().getWebView() != null) base = getBridge().getWebView().getUrl();
+        web.loadDataWithBaseURL(base, html, "text/html", "UTF-8", null);
     }
 }

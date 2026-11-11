@@ -1,5 +1,6 @@
-/* Native shell only. In the browser this file sets OjNativeCalendar.isNative to false and returns.
-   It does not change calendar downloads, checklist items, backup files, or reminders. */
+/* Native calendar and battery fields stay behind Capacitor.isNativePlatform().
+   The office hint and distance also run in the browser. This file does not change
+   calendar downloads, checklist items, backup files, or reminders. */
 (function () {
   'use strict';
   function detectNative() {
@@ -9,10 +10,7 @@
       return false;
     }
   }
-  if (!detectNative()) {
-    window.OjNativeCalendar = {isNative: false};
-    return;
-  }
+  const nativeApp = detectNative();
 
   // Published office only. Address and numbers match app.js CONTACT and https://www.oj-gutachter.de
   // (Büro: Mo–Fr 09:00–18:00, Sa 10:00–14:00, Notdienst 0176 21468719). No other office is listed.
@@ -20,7 +18,6 @@
   // "62, Meißener Straße, 44139 Dortmund" → 51.5018362, 7.4694031. Used only on device to compute distance.
   const OFFICE = {lat: 51.5018362, lon: 7.4694031};
   const DISMISS_KEY = 'oj-gebrauchtwagen-check.expertHint.dismissed.v1';
-  const NEARBY_QUERY = 'Kfz-Sachverständiger';
   const BATTERY_TESTS = [
     {id: 'aviloo', key: 'battery.testAviloo', href: 'https://aviloo.com/de/aviloo-private'},
     {id: 'tuev', key: 'battery.testTuev', href: 'https://www.tuev-nord.de/de/dienstleistungen/pruefung-und-gutachten/onboard-car-diagnosis/fahrzeugdiagnose-fuer-privatkunden/batteriecheck-fuer-privatkunden/'},
@@ -48,7 +45,11 @@
     try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (error) { return false; }
   }
   function platform() {
-    return Capacitor.getPlatform ? Capacitor.getPlatform() : 'android';
+    try {
+      return window.Capacitor && Capacitor.getPlatform ? Capacitor.getPlatform() : 'web';
+    } catch (error) {
+      return 'web';
+    }
   }
   function triggerToMinutes(trigger) {
     const match = /^-P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(String(trigger || ''));
@@ -159,24 +160,33 @@
   }
   async function openExternal(url) {
     if (!url) return;
+    if (!nativeApp) {
+      if (/^tel:/i.test(url)) {
+        window.location.assign(url);
+        return;
+      }
+      const opened = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!opened) window.location.assign(url);
+      return;
+    }
     try {
       await plugin('OjDevice').openExternal({url});
     } catch (error) {
       if (/^https?:|^tel:/i.test(url)) window.location.assign(url);
     }
   }
-  async function openSettings() {
-    try { await plugin('OjDevice').openSettings(); } catch (error) { showToast(tr('calendarNativeDeniedText')); }
+  async function openSettings(failureKey) {
+    if (!nativeApp) {
+      showToast(tr('expertHintDeniedText'));
+      return;
+    }
+    try { await plugin('OjDevice').openSettings(); } catch (error) { showToast(tr(failureKey || 'expertHintDeniedText')); }
   }
   function routeUrl() {
     const address = encodeURIComponent(CONTACT.address);
-    return platform() === 'ios'
+    return nativeApp && platform() === 'ios'
       ? `http://maps.apple.com/?daddr=${address}&dirflg=d`
       : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
-  }
-  function nearbyUrl() {
-    const query = encodeURIComponent(NEARBY_QUERY);
-    return platform() === 'ios' ? `http://maps.apple.com/?q=${query}` : `geo:0,0?q=${query}`;
   }
   function distanceKm(lat1, lon1, lat2, lon2) {
     const p = Math.PI / 180;
@@ -189,7 +199,51 @@
     const text = rounded.toLocaleString(typeof locale === 'function' ? locale() : 'de-DE');
     return tr('expertHintDistance', {km: text});
   }
+  function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(Object.assign(new Error('timeout'), {code: 'timeout'})), ms);
+      Promise.resolve(promise).then(value => {
+        clearTimeout(timer);
+        resolve(value);
+      }, error => {
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
+  }
+  function deniedError() {
+    return Object.assign(new Error('Standort nicht erlaubt.'), {code: 1});
+  }
+  function isDenied(error) {
+    if (!error) return false;
+    if (error.code === 1) return true;
+    const message = String(error.message || error);
+    return /nicht erlaubt|permission|denied|not allowed|disabled/i.test(message);
+  }
+  async function browserPermissionState() {
+    try {
+      if (!navigator.permissions || typeof navigator.permissions.query !== 'function') return null;
+      const status = await navigator.permissions.query({name: 'geolocation'});
+      return status && status.state;
+    } catch (error) {
+      return null;
+    }
+  }
+  function setDistanceMessage(text) {
+    const node = document.querySelector('[data-expert-distance]');
+    if (!node) {
+      showToast(text);
+      return;
+    }
+    node.hidden = false;
+    node.textContent = text;
+  }
   function showLocationDenied() {
+    const node = document.querySelector('[data-expert-distance]');
+    if (node) {
+      node.hidden = true;
+      node.textContent = '';
+    }
     const box = document.querySelector('[data-expert-denied]');
     if (!box) {
       showToast(tr('expertHintDeniedText'));
@@ -197,42 +251,59 @@
     }
     box.hidden = false;
   }
-  async function readDistance() {
-    let fix = null;
-    try { fix = await plugin('OjDevice').getCoarseLocation(); } catch (error) { fix = null; }
-    const node = document.querySelector('[data-expert-distance]');
-    if (!fix || typeof fix.latitude !== 'number' || typeof fix.longitude !== 'number') {
-      if (node) {
-        node.hidden = false;
-        node.textContent = tr('expertHintNoFix');
+  function readBrowserFix() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation || !window.isSecureContext) {
+        reject(Object.assign(new Error('unsupported'), {code: 2}));
+        return;
       }
-      return;
+      navigator.geolocation.getCurrentPosition(position => {
+        resolve({latitude: position.coords.latitude, longitude: position.coords.longitude});
+      }, error => reject(error), {enableHighAccuracy: false, maximumAge: 120000, timeout: 12000});
+    });
+  }
+  async function readNativeFix() {
+    const device = plugin('OjDevice');
+    const status = await withTimeout(device.checkLocation(), 8000);
+    let state = status && status.location;
+    if (state === 'prompt' || state === 'prompt-with-rationale') {
+      const next = await withTimeout(device.requestLocation(), 120000);
+      state = next && next.location;
     }
+    if (state !== 'granted') throw deniedError();
+    const fix = await withTimeout(device.getCoarseLocation(), 15000);
+    if (!fix || typeof fix.latitude !== 'number' || typeof fix.longitude !== 'number') {
+      throw Object.assign(new Error('nofix'), {code: 2});
+    }
+    return fix;
+  }
+  function showFix(fix) {
     sessionDistanceKm = distanceKm(fix.latitude, fix.longitude, OFFICE.lat, OFFICE.lon);
-    if (node) {
-      node.hidden = false;
-      node.textContent = formatDistance(sessionDistanceKm);
-    }
+    const box = document.querySelector('[data-expert-denied]');
+    if (box) box.hidden = true;
+    setDistanceMessage(formatDistance(sessionDistanceKm));
   }
   async function showDistance() {
     if (locationBusy) return;
     locationBusy = true;
+    const button = document.querySelector('[data-expert-action="distance"]');
+    if (button) button.setAttribute('aria-busy', 'true');
+    const denied = document.querySelector('[data-expert-denied]');
+    if (denied) denied.hidden = true;
+    setDistanceMessage(tr('expertHintLocating'));
     try {
-      const device = plugin('OjDevice');
-      const status = await device.checkLocation();
-      let state = status && status.location;
-      if (state === 'prompt') {
-        const next = await device.requestLocation();
-        state = next && next.location;
-      }
-      if (state === 'granted') {
-        await readDistance();
+      if (!nativeApp && await browserPermissionState() === 'denied') {
+        showLocationDenied();
         return;
       }
-      showLocationDenied();
+      const fix = nativeApp ? await readNativeFix() : await readBrowserFix();
+      showFix(fix);
     } catch (error) {
-      showLocationDenied();
+      const denied = isDenied(error) || (!nativeApp && await browserPermissionState() === 'denied');
+      if (denied) showLocationDenied();
+      else setDistanceMessage(tr('expertHintNoFix'));
     } finally {
+      if (button) button.removeAttribute('aria-busy');
       locationBusy = false;
     }
   }
@@ -243,7 +314,8 @@
   function expertHintHtml() {
     if (dismissed()) return '';
     const distance = sessionDistanceKm === null ? '' : formatDistance(sessionDistanceKm);
-    return `<aside class="expert-hint" data-expert-hint><p class="eyebrow">${escapeHtml(tr('expertHintEyebrow'))}</p><h2>${escapeHtml(tr('expertHintTitle'))}</h2><p>${escapeHtml(tr('expertHintText'))}</p><p class="expert-office" lang="de"><strong>OJ Gutachter · Larry O. Johnson</strong><br><span dir="ltr">${escapeHtml(CONTACT.address)}</span></p><p class="expert-hours">${escapeHtml(tr('expertHintHours'))}</p><div class="expert-actions">${callButton(tr('expertHintCallLandline'), CONTACT.landlineDisplay, CONTACT.landlineLink)}${callButton(tr('expertHintCallMobile'), CONTACT.phoneDisplay, CONTACT.phoneLink)}<a class="button button-secondary button-full" href="${CONTACT.website}" data-expert-action="external">${escapeHtml(tr('expertHintWeb'))}</a><button type="button" class="button button-secondary button-full" data-expert-action="route">${escapeHtml(tr('expertHintRoute'))}</button><button type="button" class="button button-secondary button-full" data-expert-action="distance">${escapeHtml(tr('expertHintDistanceButton'))}</button><button type="button" class="button button-secondary button-full" data-expert-action="nearby">${escapeHtml(tr('expertHintNear'))}</button></div><p class="expert-distance" data-expert-distance ${distance ? '' : 'hidden'}>${distance ? escapeHtml(distance) : ''}</p><div class="expert-denied" data-expert-denied hidden><h3>${escapeHtml(tr('expertHintDeniedTitle'))}</h3><p>${escapeHtml(tr('expertHintDeniedText'))}</p><button type="button" class="button button-primary button-full" data-expert-action="settings">${escapeHtml(tr('expertHintOpenSettings'))}</button><button type="button" class="button button-secondary button-full" data-expert-action="nearby">${escapeHtml(tr('expertHintMapsWithoutLocation'))}</button></div><button type="button" class="button button-text button-full expert-dismiss" data-expert-action="dismiss">${escapeHtml(tr('expertHintDismiss'))}</button></aside>`;
+    const settings = nativeApp ? `<button type="button" class="button button-primary button-full" data-expert-action="settings">${escapeHtml(tr('expertHintOpenSettings'))}</button>` : '';
+    return `<aside class="expert-hint" data-expert-hint><p class="eyebrow">${escapeHtml(tr('expertHintEyebrow'))}</p><h2>${escapeHtml(tr('expertHintTitle'))}</h2><p>${escapeHtml(tr('expertHintText'))}</p><p class="expert-office" lang="de"><strong>OJ Gutachter · Larry O. Johnson</strong><br><span dir="ltr">${escapeHtml(CONTACT.address)}</span></p><p class="expert-hours">${escapeHtml(tr('expertHintHours'))}</p><div class="expert-actions">${callButton(tr('expertHintCallLandline'), CONTACT.landlineDisplay, CONTACT.landlineLink)}${callButton(tr('expertHintCallMobile'), CONTACT.phoneDisplay, CONTACT.phoneLink)}<a class="button button-secondary button-full" href="${CONTACT.website}" data-expert-action="external">${escapeHtml(tr('expertHintWeb'))}</a><button type="button" class="button button-secondary button-full" data-expert-action="route">${escapeHtml(tr('expertHintRoute'))}</button><button type="button" class="button button-secondary button-full" data-expert-action="distance">${escapeHtml(tr('expertHintDistanceButton'))}</button></div><p class="expert-distance" data-expert-distance ${distance ? '' : 'hidden'}>${distance ? escapeHtml(distance) : ''}</p><div class="expert-denied" data-expert-denied hidden><h3>${escapeHtml(tr('expertHintDeniedTitle'))}</h3><p>${escapeHtml(tr('expertHintDeniedText'))}</p>${settings}</div><button type="button" class="button button-text button-full expert-dismiss" data-expert-action="dismiss">${escapeHtml(tr('expertHintDismiss'))}</button></aside>`;
   }
   function batteryApplies() {
     return state.drivetrain === 'electric' || state.drivetrain === 'hybrid';
@@ -347,7 +419,6 @@
     }
     if (action === 'external') return openExternal(href);
     if (action === 'route') return openExternal(routeUrl());
-    if (action === 'nearby') return openExternal(nearbyUrl());
     if (action === 'settings') return openSettings();
     if (action === 'distance') return showDistance();
   }
@@ -369,7 +440,7 @@
     event.preventDefault();
     const action = nativeCal.dataset.nativeCalendar;
     const item = pendingCalendarItem;
-    if (action === 'settings') openSettings();
+    if (action === 'settings') openSettings('calendarNativeDeniedText');
     else if (action === 'share') shareIcs(item).catch(() => showToast(tr('calendarNativeSaveFailedText')));
     else if (action === 'save') saveIcs(item).catch(() => { try { downloadIcs(item); } catch (error) { showToast(tr('calendarNativeSaveFailedText')); } });
   });
@@ -377,11 +448,12 @@
   document.addEventListener('change', onBatteryInput);
 
   window.OjNativeCalendar = {
-    isNative: true,
+    isNative: nativeApp,
     save: saveNativeCalendar,
     expertHintHtml,
     batteryFieldsHtml,
     batterySummaryHtml,
-    batteryPrintHtml
+    batteryPrintHtml,
+    printHtml: nativeApp ? (html, jobName) => plugin('OjDevice').printHtml({html, jobName}) : null
   };
 })();
