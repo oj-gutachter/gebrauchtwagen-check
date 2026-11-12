@@ -14,7 +14,7 @@
     document.documentElement.lang=lang;
     document.documentElement.dir=lang==='ar'?'rtl':'ltr';
     document.querySelector('meta[name="description"]').setAttribute('content',tr('metaDescription'));
-    document.title='OJ Gebrauchtwagen-Check – '+tr('testVersion');
+    document.title=window.OJ_NATIVE_APP?'OJ Gebrauchtwagen-Check':'OJ Gebrauchtwagen-Check – '+tr('testVersion');
     byId('languageButton').querySelector('.language-long').textContent=nativeNames[lang];
     byId('languageButton').querySelector('.language-short').textContent=lang.toUpperCase();
     byId('languageButton').setAttribute('aria-label',tr('languageButtonLabel',{language:nativeNames[lang]}));

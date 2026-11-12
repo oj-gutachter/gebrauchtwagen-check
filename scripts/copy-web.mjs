@@ -9,6 +9,7 @@ const files = [
   'styles.css',
   'i18n-base.js',
   'translations.js',
+  'app-texts.js',
   'localization-runtime.js',
   'app.js',
   'theme.js',

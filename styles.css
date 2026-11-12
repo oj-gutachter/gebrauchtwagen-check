@@ -465,3 +465,6 @@ html[data-theme="auto"] .theme-symbol-auto{display:block}
 .print-battery h2{font-size:12pt}
 .print-battery p,.print-battery dd,.print-battery dt{font-size:9pt;line-height:1.4}
 @media print{.battery-record,.expert-hint{display:none!important}}
+
+/* Native App: kein Testversion-Schild. */
+html.native-app .test-badge{display:none!important}
