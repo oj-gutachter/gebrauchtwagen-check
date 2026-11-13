@@ -11,7 +11,12 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
   function backupFileName(date=new Date()){return `OJ-Gebrauchtwagen-Check-Sicherung-${localIso(date)}.ojsicherung`;}
   function checkHasContent(check){
     if(!check)return false;
-    return !!check.drivetrain||Object.keys(check.answers||{}).length>0||Object.keys(check.notes||{}).length>0||Object.values(check.vehicle||{}).some(value=>typeof value==='string'&&value.trim())||!!(check.appointment&&check.appointment.date);
+    return !!check.drivetrain||Object.keys(check.answers||{}).length>0||Object.keys(check.notes||{}).length>0||Object.values(check.vehicle||{}).some(value=>typeof value==='string'&&value.trim())||!!(check.appointment&&check.appointment.date)||batteryHasContent(check.battery);
+  }
+  function batteryHasContent(battery){
+    if(!battery||typeof battery!=='object')return false;
+    if(typeof battery.soh==='number')return true;
+    return ['certificateDate','warrantyText','warrantyKm','warrantyYears','warrantyConditions'].some(key=>typeof battery[key]==='string'&&battery[key].trim());
   }
   function remindersHaveContent(reminders){
     if(!reminders)return false;
@@ -65,7 +70,7 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
     const {check,reminders}=raw.data;
     if(check!==undefined&&check!==null){
       if(!isPlainObject(check))return {ok:false,error:'invalid'};
-      for(const key of ['answers','notes','vehicle','appointment'])if(check[key]!==undefined&&check[key]!==null&&!isPlainObject(check[key]))return {ok:false,error:'invalid'};
+      for(const key of ['answers','notes','vehicle','appointment','battery'])if(check[key]!==undefined&&check[key]!==null&&!isPlainObject(check[key]))return {ok:false,error:'invalid'};
       if(check.drivetrain!==undefined&&check.drivetrain!==null&&!DRIVE_TYPES.includes(check.drivetrain))return {ok:false,error:'invalid'};
     }
     if(reminders!==undefined&&reminders!==null&&!isPlainObject(reminders))return {ok:false,error:'invalid'};
@@ -90,13 +95,18 @@ const BACKUP_LAST_KEY='oj-gebrauchtwagen-check.last-backup.v1';
       else if(sameJson(normalizeState(currentCheck),incoming)){plan.checkMode='same';}
       else if(currentCheck.startedAt&&incoming.startedAt&&currentCheck.startedAt===incoming.startedAt&&(!currentCheck.drivetrain||!incoming.drivetrain||currentCheck.drivetrain===incoming.drivetrain)){
         plan.checkMode='merge';
-        plan.check=normalizeState({...currentCheck,
+        const merged={...currentCheck,
           drivetrain:currentCheck.drivetrain||incoming.drivetrain,
           answers:{...incoming.answers,...currentCheck.answers},
           notes:fillMissing(currentCheck.notes||{},incoming.notes),
           vehicle:fillMissing(currentCheck.vehicle||{},incoming.vehicle),
           appointment:currentCheck.appointment&&currentCheck.appointment.date?currentCheck.appointment:incoming.appointment,
-          completedAt:currentCheck.completedAt||incoming.completedAt});
+          completedAt:currentCheck.completedAt||incoming.completedAt};
+        if(typeof mergeBatteryRecord==='function'){
+          const battery=mergeBatteryRecord(currentCheck.battery,incoming.battery);
+          if(battery)merged.battery=battery;
+        }
+        plan.check=normalizeState(merged);
       }else{plan.checkMode='replace';plan.check=incoming;}
     }
     if(backup.reminders)plan.reminders=normalizeReminders(fillMissing(currentReminders,backup.reminders));

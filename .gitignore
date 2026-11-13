@@ -2,3 +2,7 @@ tests/
 logo-entwuerfe/
 screenshots/
 .DS_Store
+node_modules/
+www/
+.capacitor/
+native/oj-device/android/build/

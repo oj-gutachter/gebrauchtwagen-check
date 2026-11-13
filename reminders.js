@@ -125,7 +125,7 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
       ${!blocks.length&&!mileage?`<div class="empty-reminders"><h2>${tr('noDates')}</h2><p>${tr('noDatesText')}</p><button class="button button-primary" type="button" data-action="edit-reminders">${tr('createFirstReminder')}</button></div>`:''}
       <div class="reminder-stats" aria-label="${tr('trafficLightLabel')}"><span class="green-dot"></span> ${tr('moreThanEightWeeks')} <span class="amber-dot"></span> ${tr('soon')} <span class="red-dot"></span> ${tr('overdue')}</div>
       <section class="reminders-list" aria-label="${tr('yourReminders')}">
-        ${hu?card('hu',tr('inspectionLabel'),hu):''}${tires?card('tires',tr('tireChangeLabel',{tire:tireLabel()}),tires):''}${inspection?card('inspection',serviceLabel(),inspection):''}
+        ${hu?card('hu',tr('inspectionLabel'),hu):''}${tires?card('tires',tr('tireChangeLabel',{tire:tireLabel()}),tires):''}${inspection?card('inspection',serviceLabel(),inspection):''}${(hu||inspection)?expertHintSlot():''}
         ${mileage?`<article class="reminder-card ${mileage.level}" data-reminder-status="${mileage.level}"><div class="reminder-card-top"><span class="reminder-symbol" aria-hidden="true">km</span><span class="due-badge">${mileage.badge}</span></div><h2>${tr(isElectricReminder()?'serviceElectricByMileageTitle':'serviceByMileageTitle')}</h2><p class="reminder-date">${tr('mileageAt',{n:reminderState.inspectionMileage.toLocaleString(locale())})}</p><p class="reminder-countdown">${mileage.text}</p><p class="reminder-explanation">${tr('mileageCardHelp')}</p></article>`:''}
       </section>
       <p class="legal-note"><strong>${tr('important')}</strong> ${tr('calendarLegal')}</p>
@@ -273,7 +273,15 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
     if(timed)params.set('ctz','Europe/Berlin');
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
   }
+  function expertHintSlot(){
+    if(!(window.OjNativeCalendar&&typeof window.OjNativeCalendar.expertHintHtml==='function'))return '';
+    return window.OjNativeCalendar.expertHintHtml()||'';
+  }
   function calendarControlsHtml(key,variant){
+    if(window.OjNativeCalendar&&window.OjNativeCalendar.isNative===true){
+      if(variant==='appointment')return `<button class="button button-secondary button-full calendar-download" type="button" data-action="appointment-calendar">${tr('appointment.calendarButton')}</button>`;
+      return `<button class="button button-secondary button-full calendar-download" type="button" data-reminder-calendar="${key}">${tr('calendarButton')}</button>`;
+    }
     if(currentCalendarPlatform()==='android'){
       const note=variant==='appointment'?'calendarFileNoteAppointment':'calendarFileNote';
       const fileAttrs=variant==='appointment'?'data-action="appointment-calendar" data-calendar-mode="file"':`data-reminder-calendar="${key}" data-calendar-mode="file"`;
@@ -355,6 +363,9 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
     showCalendarHandoffBanner(item);
   }
   function openCalendar(key,mode='auto'){
+    if(mode!=='file'&&mode!=='google'&&window.OjNativeCalendar&&window.OjNativeCalendar.isNative===true&&typeof window.OjNativeCalendar.save==='function'){
+      return window.OjNativeCalendar.save(key);
+    }
     const item=calendarItemByKey(key);
     if(!item){
       showToast(key==='besichtigung'?tr('appointment.missingDate'):tr('saveValidDateFirst'));
@@ -428,7 +439,7 @@ function serviceLabel(){return tr(isElectricReminder()?'serviceElectric':'servic
   });
   const calendarDialog=document.getElementById('calendarDialog');
   if(calendarDialog)calendarDialog.addEventListener('click',event=>{if(event.target===event.currentTarget)event.currentTarget.close();});
-  Object.assign(window,{syncReminderDrivetrain,saveCalendarFile,renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks,calendarPlatform,iosMajorVersion,googleCalendarUrl,safariCalendarUrl,encodeCalendarHash,decodeCalendarHash,consumeCalendarFragment,openCalendar,openIosSafariCalendar,openCalendarFromHandoff,showCalendarSheet,showCalendarHandoffBanner,calendarControlsHtml,downloadIcs});
+  Object.assign(window,{syncReminderDrivetrain,saveCalendarFile,renderReminderForm(){app.innerHTML=reminderForm();},renderReminders(){app.innerHTML=overview();},createCalendar,createReminderCalendar:createCalendar,reminderData,reminderBlocks,calendarPlatform,iosMajorVersion,googleCalendarUrl,safariCalendarUrl,encodeCalendarHash,decodeCalendarHash,consumeCalendarFragment,openCalendar,openIosSafariCalendar,openCalendarFromHandoff,showCalendarSheet,showCalendarHandoffBanner,calendarControlsHtml,calendarItemByKey,downloadIcs});
 })();
 
 if(typeof window.startOjCheck==='function')window.startOjCheck();

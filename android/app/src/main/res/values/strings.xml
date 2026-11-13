@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OJ Gebrauchtwagen-Check</string>
+    <string name="title_activity_main">OJ Gebrauchtwagen-Check</string>
+    <string name="package_name">de.ojgutachter.gebrauchtwagencheck</string>
+    <string name="custom_url_scheme">de.ojgutachter.gebrauchtwagencheck</string>
+</resources>

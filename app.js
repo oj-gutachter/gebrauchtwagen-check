@@ -168,6 +168,41 @@ function driveLabel(){return state.drivetrain?tr(`drive.${state.drivetrain}`):''
 function createState(){
   return {version:2, drivetrain:null, step:0, answers:{}, notes:{}, vehicle:{}, appointment:{date:'',time:''}, startedAt:null, completedAt:null};
 }
+function isNativeShell(){
+  try{return !!(window.OjNativeCalendar&&window.OjNativeCalendar.isNative===true);}catch(error){return false;}
+}
+function emptyBattery(){return {soh:null,certificateDate:'',warrantyText:'',warrantyKm:'',warrantyYears:'',warrantyConditions:''};}
+function normalizeBattery(raw){
+  const out=emptyBattery();
+  if(!raw||typeof raw!=='object')return out;
+  let soh=raw.soh;
+  if(typeof soh==='string'&&soh.trim()!=='')soh=Number(String(soh).replace(',','.'));
+  if(typeof soh==='number'&&Number.isFinite(soh)&&soh>=0&&soh<=100)out.soh=Math.round(soh*10)/10;
+  if(typeof raw.certificateDate==='string'&&isValidIsoDate(raw.certificateDate))out.certificateDate=raw.certificateDate;
+  const limits={warrantyText:80,warrantyKm:40,warrantyYears:40,warrantyConditions:500};
+  Object.keys(limits).forEach(key=>{if(typeof raw[key]==='string')out[key]=raw[key].trim().slice(0,limits[key]);});
+  return out;
+}
+function mergeBatteryRecord(current,incoming){
+  if(!isNativeShell())return null;
+  const present=normalizeBattery(current),saved=normalizeBattery(incoming),out=Object.assign({},saved,present);
+  if(present.soh===null)out.soh=saved.soh;
+  if(!present.certificateDate)out.certificateDate=saved.certificateDate;
+  ['warrantyText','warrantyKm','warrantyYears','warrantyConditions'].forEach(key=>{if(!present[key])out[key]=saved[key];});
+  return out;
+}
+function batteryFieldsHtml(point){
+  if(!isNativeShell()||typeof window.OjNativeCalendar.batteryFieldsHtml!=='function')return '';
+  return window.OjNativeCalendar.batteryFieldsHtml(point)||'';
+}
+function batterySummaryHtml(){
+  if(!isNativeShell()||typeof window.OjNativeCalendar.batterySummaryHtml!=='function')return '';
+  return window.OjNativeCalendar.batterySummaryHtml()||'';
+}
+function batteryPrintHtml(){
+  if(!isNativeShell()||typeof window.OjNativeCalendar.batteryPrintHtml!=='function')return '';
+  return window.OjNativeCalendar.batteryPrintHtml()||'';
+}
 function normalizeState(raw){
   const clean=createState();
   const validAnswerKeys=new Set(['petrol','hybrid','electric'].flatMap(drive=>stepsFor(drive).flatMap(step=>step.itemIndexes.map(itemIndex=>`${step.id}-${itemIndex}`))));
@@ -192,6 +227,7 @@ function normalizeState(raw){
       if(validAnswerKeys.has(key)&&sourceStatus[value])clean.answers[key]=value;
     });
   }
+  if(isNativeShell())clean.battery=normalizeBattery(raw.battery);
   return clean;
 }
 function isValidIsoDate(value){
@@ -325,7 +361,7 @@ function renderChecklist(){
           const value=state.answers[point.key]||'';
           return `<article class="check-item" data-status="${value}" data-point-key="${point.key}">
             <div class="check-item-title"><span class="check-number">${String(i+1).padStart(2,'0')}</span><h2>${driveItemText(point,'title')}</h2></div>
-            <p class="check-tip">${driveItemText(point,'hint')}</p>
+            <p class="check-tip">${driveItemText(point,'hint')}</p>${batteryFieldsHtml(point)}
             <div class="check-note"><label for="note-${point.key}">${tr('printNoteColumn')} <span>(${tr('optional')})</span><input id="note-${point.key}" type="text" data-action="point-note" data-key="${point.key}" value="${escapeHtml(noteValue(point.key))}" maxlength="500" placeholder="${tr('printNotePlaceholder')}" autocomplete="off"></label></div>
             <div class="choice-group" role="group" aria-label="${tr('ratingLabel',{title:driveItemText(point,'title')})}">
               ${Object.entries(sourceStatus).map(([status,meta])=>`<button class="choice" type="button" data-action="answer" data-key="${point.key}" data-value="${status}" aria-pressed="${value===status}"><span class="choice-symbol" aria-hidden="true">${meta.icon}</span>${tr('status.'+status)}</button>`).join('')}
@@ -393,6 +429,7 @@ function printReport(c,s,recommendation){
     <section class="print-findings"><h2>${tr('printFindingsTitle')}</h2>${flagged.length?`<table><thead><tr><th>${tr('printPointColumn')}</th><th>${tr('printResultColumn')}</th><th>${tr('printNoteColumn')}</th></tr></thead><tbody>${flagged.map(point=>`<tr><td><small>${point.stepIndex+1}.${point.itemIndexInStep+1}</small> ${escapeHtml(driveItemText(point,'title'))}</td><td class="print-finding-status ${state.answers[point.key]}">${sourceStatus[state.answers[point.key]].icon} ${tr('status.'+state.answers[point.key])}</td><td data-print-note="${point.key}">${escapeHtml(noteValue(point.key))||tr('printNoNote')}</td></tr>`).join('')}</tbody></table>`:`<p class="print-no-findings">✓ ${tr('noFindings')}</p>`}</section>
     <section class="print-recommendation"><h2>${tr('printContactTitle')}</h2><p>${tr(recommendation+'Text')}</p><p class="print-recommendation-contact"><strong>OJ Gutachter · Larry O. Johnson</strong><br>${CONTACT.address} · Tel. ${CONTACT.landlineDisplay} / ${CONTACT.phoneDisplay}<br>${CONTACT.email} · www.oj-gutachter.de</p></section>
     <section class="print-results">${activeSteps().map((step,stepIndex)=>`${stepIndex===0?`<div class="print-results-start"><h2>${tr('printResultsTitle')}</h2>`:''}<section class="print-step-group"><table><colgroup><col class="col-point"><col class="col-result"><col class="col-note"></colgroup><thead><tr class="print-step-title"><th colspan="3"><h3>${stepIndex+1}. ${driveText(step,'title')}</h3></th></tr><tr><th>${tr('printPointColumn')}</th><th>${tr('printResultColumn')}</th><th>${tr('printNoteColumn')}</th></tr></thead><tbody>${step.itemIndexes.map((itemIndex,index)=>printPointRow({key:`${step.id}-${itemIndex}`,textKey:`${step.textKey}.items.${itemIndex}`},index)).join('')}</tbody></table></section>${stepIndex===0?'</div>':''}`).join('')}</section>
+    ${batteryPrintHtml()}
     <footer class="print-end-note"><strong>${tr('important')}</strong> ${tr('summaryLegal')}<br><span>${tr('printCreatedWith')} · ${printDate()}</span></footer>
   </article>`;
 }
@@ -415,6 +452,7 @@ function renderSummary(){
       ${completed<c.total?`<p class="local-notice">${tr('ratedOf',{done:completed,total:c.total})} <button type="button" class="button button-text" data-action="start">${tr('continueCheck')}</button></p>`:''}
     </section>
     <div class="summary-body screen-summary">
+      ${batterySummaryHtml()}
       <aside class="recommendation"><div class="recommendation-icon" aria-hidden="true">i</div><div><h2>${tr(recommendation+'Title')}</h2><p>${tr(recommendation+'Text')}</p></div></aside>
       <h2 class="findings-title">${tr('notesTitle')}</h2><p class="findings-sub">${tr('notesIntro')}</p>
       ${findings().join('')||`<div class="all-ok">✓ ${tr('noFindings')}</div>`}
@@ -432,12 +470,45 @@ function renderSummary(){
     </div>`;
 }
 function contactLink(){return '#kontakt';}
-function renderContact(){
-  const c=counts();
+const senderDetails={name:'',phone:'',email:''};
+function oneLine(value,max){return String(value||'').replace(/[\r\n\t]+/g,' ').trim().slice(0,max);}
+function plausibleName(value){const text=oneLine(value,80);return text.length>=2&&text.length<=80&&/\p{L}/u.test(text);}
+function plausiblePhone(value){
+  const text=oneLine(value,30);
+  if(!/^\+?(?:\d[\s()./-]*){8,}$/.test(text))return false;
+  const digits=text.replace(/\D/g,'');
+  if(digits.length<8||digits.length>15||/^(\d)\1+$/.test(digits))return false;
+  if(text.startsWith('+')&&(digits.startsWith('0')||digits.length<8))return false;
+  return true;
+}
+function plausibleEmail(value){const text=oneLine(value,120);return !text||/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(text);}
+function readSenderFromDom(){
+  const name=document.getElementById('senderName');
+  if(!name)return;
+  senderDetails.name=name.value;
+  senderDetails.phone=document.getElementById('senderPhone')?.value||'';
+  senderDetails.email=document.getElementById('senderEmail')?.value||'';
+}
+function currentSender(){
+  return {name:oneLine(senderDetails.name,80),phone:oneLine(senderDetails.phone,30),email:oneLine(senderDetails.email,120)};
+}
+function senderContactError(details){
+  if(!plausibleName(details.name))return {field:'senderName',key:'senderNameInvalid'};
+  if(!plausiblePhone(details.phone))return {field:'senderPhone',key:'senderPhoneInvalid'};
+  if(!plausibleEmail(details.email))return {field:'senderEmail',key:'senderEmailInvalid'};
+  return null;
+}
+function preparedEmail(details){
   const accidentContact=contactOrigin==='reminders';
+  const c=counts();
+  const contact=[tr('senderBlockTitle'),`${tr('senderName')}: ${details.name}`,`${tr('senderPhone')}: ${details.phone}`];
+  if(details.email)contact.push(`${tr('senderEmail')}: ${details.email}`);
   const subject=tr(accidentContact?'accidentSubject':'checkSubject');
-  const body=[...tr(accidentContact?'accidentEmail':'checkEmail',{ok:c.ok,issue:c.issue,unclear:c.unclear}),...(!accidentContact&&state.drivetrain?['',`${tr('drive.summaryLabel')}: ${driveLabel()}`]:[])].join('\n');
-  const mailto=`mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const body=[...contact,'',...tr(accidentContact?'accidentEmail':'checkEmail',{ok:c.ok,issue:c.issue,unclear:c.unclear}),...(!accidentContact&&state.drivetrain?['',`${tr('drive.summaryLabel')}: ${driveLabel()}`]:[])].join('\n');
+  return {to:CONTACT.email,subject,body,href:`mailto:${CONTACT.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`};
+}
+function renderContact(){
+  const accidentContact=contactOrigin==='reminders';
   app.innerHTML=`
     <section class="contact-hero"><p class="eyebrow">${tr('independentInspection')}</p><h1>${accidentContact?tr('accidentHelp'):tr('requestExpert')}</h1><p>${accidentContact?tr('accidentContactIntro'):tr('checkContactIntro')}</p></section>
     <div class="contact-body">
@@ -445,8 +516,22 @@ function renderContact(){
       <div class="contact-cards">
         <a class="contact-card" href="${CONTACT.phoneLink}"><div class="contact-card-icon" aria-hidden="true">☎</div><div><strong>${tr('callMobile')}</strong><span dir="ltr">${CONTACT.phoneDisplay}</span></div></a>
         <a class="contact-card" href="${CONTACT.landlineLink}"><div class="contact-card-icon" aria-hidden="true">☎</div><div><strong>${tr('callLandline')}</strong><span dir="ltr">${CONTACT.landlineDisplay}</span></div></a>
-        <a class="contact-card" href="${mailto}"><div class="contact-card-icon" aria-hidden="true">@</div><div><strong>${tr('prepareEmail')}</strong><span dir="ltr">${CONTACT.email}</span></div></a>
       </div>
+      <form id="senderContactForm" class="sender-contact" novalidate>
+        <fieldset>
+          <legend>${tr('senderContactTitle')}</legend>
+          <p class="form-help">${tr('senderContactHelp')}</p>
+          <label for="senderName">${tr('senderName')}</label>
+          <input id="senderName" name="name" type="text" required maxlength="80" autocomplete="name" value="${escapeHtml(senderDetails.name)}">
+          <label for="senderPhone">${tr('senderPhone')}</label>
+          <input id="senderPhone" name="phone" type="tel" inputmode="tel" required maxlength="30" autocomplete="tel" dir="ltr" placeholder="0176 1234567" value="${escapeHtml(senderDetails.phone)}">
+          <label for="senderEmail">${tr('senderEmail')} <span>${tr('optional')}</span></label>
+          <input id="senderEmail" name="email" type="email" inputmode="email" maxlength="120" autocomplete="email" dir="ltr" value="${escapeHtml(senderDetails.email)}">
+          <div id="senderContactError" class="form-error" role="alert" tabindex="-1" hidden></div>
+          <button class="button button-primary button-full" type="submit">${tr('prepareEmail')} ${iconArrow()}</button>
+          <p class="form-help">${tr('senderMailTarget',{email:CONTACT.email})}</p>
+        </fieldset>
+      </form>
       <p class="contact-note">${tr('contactNoteStart',{damage:accidentContact?tr('damageAddition'):''})}<strong>${tr('contactNoteWarning')}</strong></p>
       <p class="contact-address"><strong>Larry O. Johnson · ${tr('profession')}</strong><br><span lang="de">${CONTACT.address}</span><br><a href="${CONTACT.website}" target="_blank" rel="noopener noreferrer">www.oj-gutachter.de</a></p>
       <p class="local-notice">${accidentContact?tr('localDetails'):tr('localAnswersPdf')}</p>
@@ -537,7 +622,7 @@ function handleAction(action,element){
   }else if(action==='confirm-reset'){
     state=createState();save();document.getElementById('resetDialog').close();goTo('home');showToast(tr('resetDone'));
   }else if(action==='print'){
-    window.print();
+    printEvaluation();
   }else if(action==='privacy'){
     goTo('privacy');
   }else if(action==='backup'){
@@ -580,8 +665,35 @@ document.addEventListener('click',event=>{
   if(element){event.preventDefault();handleAction(element.dataset.action,element);}
 });
 document.addEventListener('input',event=>{
+  if(event.target.closest&&event.target.closest('#senderContactForm')){
+    readSenderFromDom();
+    const box=document.getElementById('senderContactError');
+    if(box)box.hidden=true;
+    if(event.target.removeAttribute)event.target.removeAttribute('aria-invalid');
+  }
   const element=event.target.closest('[data-action="vehicle-field"],[data-action="vehicle-notes"],[data-action="point-note"]');
   if(element)handleAction(element.dataset.action,element);
+});
+document.addEventListener('submit',event=>{
+  if(event.target.id!=='senderContactForm')return;
+  event.preventDefault();
+  readSenderFromDom();
+  const details=currentSender();
+  const error=senderContactError(details);
+  const box=document.getElementById('senderContactError');
+  ['senderName','senderPhone','senderEmail'].forEach(id=>document.getElementById(id)?.removeAttribute('aria-invalid'));
+  if(error){
+    if(box){box.hidden=false;box.textContent=tr(error.key);}
+    const field=document.getElementById(error.field);
+    if(field){field.setAttribute('aria-invalid','true');field.focus();}
+    else box?.focus();
+    window.__lastPreparedEmail=null;
+    return;
+  }
+  if(box)box.hidden=true;
+  const mail=preparedEmail(details);
+  window.__lastPreparedEmail=mail;
+  window.location.assign(mail.href);
 });
 document.addEventListener('change',event=>{
   const element=event.target.closest('[data-action="appointment-field"]');
@@ -614,6 +726,65 @@ document.getElementById('resetDialog').addEventListener('click',event=>{
   if(event.target===event.currentTarget) event.currentTarget.close();
 });
 function cssString(value){return '"'+String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,' ')+'"';}
+function collectPrintCss(){
+  const chunks=[];
+  const visit=(rules,inPrint)=>{
+    for(const rule of rules){
+      if(rule.type===CSSRule.MEDIA_RULE){
+        const text=rule.media&&rule.media.mediaText||'';
+        if(/\bprint\b/.test(text))visit(rule.cssRules,true);
+      }else if(rule.type===CSSRule.SUPPORTS_RULE){
+        visit(rule.cssRules,inPrint);
+      }else if(inPrint&&rule.cssText){
+        chunks.push(rule.cssText);
+      }
+    }
+  };
+  for(const sheet of document.styleSheets){
+    try{visit(sheet.cssRules,false);}catch(_){}
+  }
+  return chunks.join('\n');
+}
+function inlineImage(img){
+  return fetch(img.src).then(response=>response.blob()).then(blob=>new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=()=>{img.src=String(reader.result||img.src);resolve();};
+    reader.onerror=()=>resolve();
+    reader.readAsDataURL(blob);
+  })).catch(()=>{});
+}
+async function buildPrintDocument(){
+  preparePrintReport();
+  const source=document.querySelector('.print-report');
+  if(!source)return '';
+  const report=source.cloneNode(true);
+  await Promise.all([...report.querySelectorAll('img')].map(inlineImage));
+  const rtl=document.documentElement.dir==='rtl';
+  const lang=document.documentElement.lang||'de';
+  return `<!doctype html><html lang="${lang}" dir="${rtl?'rtl':'ltr'}"><head><meta charset="utf-8"><style>html,body{margin:0;background:#fff;color:#202124}${collectPrintCss()}</style></head><body>${report.outerHTML}</body></html>`;
+}
+let printBusy=false;
+async function printEvaluation(){
+  if(printBusy)return;
+  printBusy=true;
+  try{
+    preparePrintReport();
+    if(!(isNativeShell()&&window.OjNativeCalendar&&typeof window.OjNativeCalendar.printHtml==='function')){
+      window.print();
+      return;
+    }
+    const html=await buildPrintDocument();
+    if(!html.includes('print-report')){
+      showToast(tr('printFailed'));
+      return;
+    }
+    await window.OjNativeCalendar.printHtml(html, tr('printProtocolTitle'));
+  }catch(_){
+    showToast(tr('printFailed'));
+  }finally{
+    printBusy=false;
+  }
+}
 function preparePrintReport(){
   // Fußzeile über CSS-Seitenränder: Text und echte Seitenzahlen auf jeder Seite.
   let style=document.getElementById('printPageStyle');
