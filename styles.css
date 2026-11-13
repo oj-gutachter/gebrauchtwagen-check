@@ -468,5 +468,13 @@ html[data-theme="auto"] .theme-symbol-auto{display:block}
 
 /* Native App: kein Testversion-Schild. */
 html.native-app .test-badge{display:none!important}
-/* Native App: kein Umschalter für Hell/Dunkel, die App folgt dem Telefon. */
-html.native-app #themeButton,html.native-app #footerThemeButton{display:none!important}
+
+/* Aussehen: einheitliche Linien-Symbole im Kopfzeilen-Knopf und in der Auswahl. */
+.theme-toggle svg,.dialog-icon svg,.theme-choice-icon svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+.theme-toggle svg{width:26px;height:26px}
+.dialog-icon{font-size:0}.dialog-icon svg{width:28px;height:28px}
+.theme-choice>span.theme-choice-icon{display:grid;place-items:center;flex:0 0 42px;max-width:42px;line-height:1;width:42px;height:42px;border-radius:13px;background:var(--surface);color:var(--accent);border:1px solid var(--line)}
+.theme-choice-icon svg{width:24px;height:24px}
+.theme-choice:has(input:checked) .theme-choice-icon{border-color:var(--accent)}
+.theme-choice{position:relative}.theme-choice>input[name="themeChoice"]{position:absolute;opacity:0;width:1px;min-width:1px;height:1px;min-height:1px;flex:0 0 0;pointer-events:none}
+.theme-choice:has(input:focus-visible){outline:3px solid var(--accent);outline-offset:2px}
