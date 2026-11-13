@@ -468,3 +468,5 @@ html[data-theme="auto"] .theme-symbol-auto{display:block}
 
 /* Native App: kein Testversion-Schild. */
 html.native-app .test-badge{display:none!important}
+/* Native App: kein Umschalter für Hell/Dunkel, die App folgt dem Telefon. */
+html.native-app #themeButton,html.native-app #footerThemeButton{display:none!important}

@@ -7,10 +7,13 @@
   <script>
   (()=>{
     let choice='auto';
+    let nativeApp=false;
+    try{nativeApp=!!(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform());}catch(_){}
     try{
       const saved=localStorage.getItem('oj-gebrauchtwagen-check.theme.v1');
-      if(['auto','light','dark'].includes(saved))choice=saved;
+      if(!nativeApp&&['auto','light','dark'].includes(saved))choice=saved;
     }catch(_){}
+    if(nativeApp)document.documentElement.classList.add('native-app');
     const system=matchMedia('(prefers-color-scheme: dark)');
     const resolved=choice==='auto'?(system.matches?'dark':'light'):choice;
     const root=document.documentElement;

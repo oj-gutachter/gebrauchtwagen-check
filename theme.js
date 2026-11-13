@@ -4,7 +4,11 @@
   const valid=value=>['auto','light','dark'].includes(value);
   const system=window.matchMedia('(prefers-color-scheme: dark)');
   const root=document.documentElement;
-  let preference=valid(root.dataset.theme)?root.dataset.theme:'auto';
+  // In der nativen App gibt es keine Auswahl: sie folgt immer dem Hell/Dunkel-Modus des Telefons.
+  // Eine früher gespeicherte Wahl bleibt im Speicher, wird aber nicht verwendet.
+  let nativeApp=false;
+  try{nativeApp=!!(window.Capacitor&&typeof Capacitor.isNativePlatform==='function'&&Capacitor.isNativePlatform());}catch(_){}
+  let preference=nativeApp?'auto':(valid(root.dataset.theme)?root.dataset.theme:'auto');
   function apply(next,save=false){
     preference=valid(next)?next:'auto';
     const resolved=preference==='auto'?(system.matches?'dark':'light'):preference;
@@ -29,6 +33,6 @@
   const systemChanged=()=>{if(preference==='auto')apply('auto');};
   if(typeof system.addEventListener==='function')system.addEventListener('change',systemChanged);
   else if(typeof system.addListener==='function')system.addListener(systemChanged);
-  window.addEventListener('storage',event=>{if(event.key===STORAGE_KEY)apply(valid(event.newValue)?event.newValue:'auto');});
+  window.addEventListener('storage',event=>{if(!nativeApp&&event.key===STORAGE_KEY)apply(valid(event.newValue)?event.newValue:'auto');});
   apply(preference);
 })();
